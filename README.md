@@ -253,3 +253,4 @@ Execute one story per iteration
 * [agents.md](https://agents.md/)
 * [Various recipes for Ralph](https://block.github.io/goose/docs/tutorials/ralph-loop/)
   - [the recipes](https://github.com/block/goose/tree/main/documentation/src/pages/recipes/data/recipes)
+    + [web-accessibility-auditor.yaml](https://github.com/block/goose/blob/main/documentation/src/pages/recipes/data/recipes/web-accessibility-auditor.yaml)
