@@ -17,7 +17,7 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     # Capture the output to a variable
     RESPONSE=$(cat "$PROMPT_FILE" | codex exec --yolo -)
     # Claude
-    # RESPONSE=$(cat prompt.md | claude -p --dangerously-skip-permissions;)
+    # RESPONSE=$(cat PROMPT.md | claude -p --dangerously-skip-permissions;)
 
     # Print it so you can see what's happening
     echo "$RESPONSE"

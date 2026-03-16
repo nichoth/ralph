@@ -1,0 +1,55 @@
+2026-03-05 TASK-001 Verify serverside rendering
+
+Changes:
+- Replaced the placeholder test with a Node SSR test that requests `/` from
+  the Hono app and asserts full HTML output plus serialized initial state.
+- Added `test:ssr` in `package.json` and pointed `npm test` to it so tests run
+  in Node.
+- Added `test/stubs/cloudflare-workers.ts` to alias `cloudflare:workers`
+  during Node bundling.
+- Updated `src/client/routes/contact.tsx` submit handler event type from
+  `SubmitEvent` to `Event` so project typecheck passes.
+- Marked `TASK-001` as `passes: true` in `specs/prd.json`.
+
+Patterns discovered:
+- Worker SSR tests in Node need an alias for `cloudflare:workers`.
+- CSS imports in server-shared JSX can be handled in Node test bundles with
+  `esbuild --loader:.css=text`.
+- `app.fetch(request, env)` works well for server-rendering verification with
+  lightweight Env stubs.
+
+Verification:
+- `npm run lint` passed.
+- `npm test` passed (8/8 assertions).
+- `npx tsc --noEmit` passed.
+
+2026-03-05 TASK-002 Client side rendering
+
+Changes:
+- Added `test/client.ts` to run browser-environment client hydration tests
+  using `happy-dom` in Node.
+- Added `test:client` in `package.json` and updated `npm test` to run both
+  SSR (`test:ssr`) and client (`test:client`) suites.
+- Updated `src/client/index.tsx` to hydrate from shared `App`, read
+  `__INITIAL_STATE__`, and initialize client state from server-provided
+  serialized state.
+- Updated `src/client/state.ts` so `State()` can accept initial route/count
+  values from SSR hydration payload.
+- Updated `src/client/routes/home.tsx` to render and update counter text from
+  a tracked numeric value so client interactions re-render as expected.
+- Added `happy-dom` to `devDependencies`.
+- Marked `TASK-002` as `passes: true` in `specs/prd.json`.
+
+Patterns discovered:
+- Browser-style client tests can run in Node by bundling test code with
+  `esbuild` and leaving npm packages external (`--packages=external`) while
+  installing DOM globals with `happy-dom`.
+- Client hydration should read route/count from the SSR
+  `__INITIAL_STATE__` script to avoid boot-time route drift from URL-only
+  initialization.
+- For this Hono JSX setup, rendering explicit numeric values in route output
+  avoids unstable signal-object string output across SSR/client hydration.
+
+Verification:
+- `npm run lint` passed.
+- `npm test` passed (`test:ssr` and `test:client` both green).
