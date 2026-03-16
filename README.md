@@ -8,6 +8,7 @@ See
 * [The Ralph Playbook 2](https://claytonfarr.github.io/ralph-playbook/)
 * [everything is a ralph loop](https://ghuntley.com/loop/)
 * [repomirror/repomirror.md](https://github.com/repomirrorhq/repomirror/blob/main/repomirror.md)
+* [The Ralph Video](https://youtu.be/4Nna09dG_c0)
 * ["starts with a conversation"](https://youtu.be/4Nna09dG_c0)
 * ["It's a dance, folks. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0)
 
