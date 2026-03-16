@@ -1,0 +1,8 @@
+{
+    "scripts": {
+        "toc": "markdown-toc --maxdepth 3 -i README.md"
+    },
+    "devDependencies": {
+        "markdown-toc": "^1.2.0"
+    }
+}

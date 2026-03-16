@@ -1,14 +1,163 @@
 # Ralph
 
-So how do you use this Ralph thing? With the Claude plugin:
+So how do you use this Ralph thing?
 
-Run once:
+See
+
+* [The Ralph Playbook](https://github.com/ghuntley/how-to-ralph-wiggum).
+* [The Ralph Playbook 2](https://claytonfarr.github.io/ralph-playbook/)
+* [everything is a ralph loop](https://ghuntley.com/loop/)
+* [repomirror/repomirror.md](https://github.com/repomirrorhq/repomirror/blob/main/repomirror.md)
+* ["starts with a conversation"](https://youtu.be/4Nna09dG_c0)
+* ["It's a dance, folks. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0)
+
+<details><summary><h2>Contents</h2></summary>
+
+<!-- toc -->
+
+  * [Need to do these things:](#need-to-do-these-things)
+    + [3. Start Ralph in a loop of 5 iterations](#3-start-ralph-in-a-loop-of-5-iterations)
+  * [The Ralph Script](#the-ralph-script)
+    + [Make executable](#make-executable)
+    + [do one thing per loop](#do-one-thing-per-loop)
+    + [Claude](#claude)
+    + [`PROMPT.md`](#promptmd)
+  * [How To](#how-to)
+    + [Phase 1. Define Requirements (LLM conversation)](#phase-1-define-requirements-llm-conversation)
+    + [Phase 2 / 3 -- Run Ralph Loop (two modes, swap `PROMPT.md` as needed)](#phase-2--3----run-ralph-loop-two-modes-swap-promptmd-as-needed)
+- [Build Mode](#build-mode)
+  * [Memory](#memory)
+    + [PRD (JSON)](#prd-json)
+    + [Loop](#loop)
+  * [See Also](#see-also)
+
+<!-- tocstop -->
+
+</details>
+
+## Need to do these things:
+
+1. Define requirements -- see [`./specs/prd.json`](./specs/prd.json).
+2. Create a `PROMPT.md` file &mdash; can copy + paste [PROMPT.md](./PROMPT.md).
+   The `PROMPT.md` file defines a stopping condition that will be printed on
+   success. The stop text is watched for the the [./ralph.sh script](./ralph.sh).
+
+### 3. Start Ralph in a loop of 5 iterations
 
 ```sh
-/ralph-loop "Your task description" --completion-promise "DONE"
+./ralph.sh 5
 ```
 
-See [official plugin docs](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum).
+---
+
+## The Ralph Script
+
+See [./ralph.sh](./ralph.sh).
+
+Context loaded each iteration: `PROMPT.md` + `AGENTS.md`.
+
+The prompts you start with won't be the prompts you end with -- they evolve
+through observed failure patterns. Observe and adjust reactively. When Ralph
+fails a specific way, add a sign to help him next time.
+
+### Make executable
+
+```sh
+chmod +x ralph.sh
+```
+
+### do one thing per loop
+
+It's about keeping the context window small.
+
+
+### Claude
+
+```sh
+claude --dangerously-skip-permissions
+```
+
+### `PROMPT.md`
+
+The file that it reads every time before starting.
+
+#### Example of a Prompt
+
+```md
+# Ralph Agent Instructions
+
+## Your Task
+
+1. Read `scripts/ralph/prd.json`
+2. Read `scripts/ralph/progress.log`
+   (check Codebase Patterns first)
+3. Check you're on the correct branch
+4. Pick highest priority story 
+   where `passes: false`
+5. Implement that ONE story
+6. Run typecheck and tests
+7. Update AGENTS.md files with learnings
+8. Commit: `feat: [ID] - [Title]`
+9. Update prd.json: `passes: true`
+10. Append learnings to progress.log
+
+## Progress Format
+
+APPEND to progress.log:
+
+## [Date] - [Story ID]
+- What was implemented
+- Files changed
+- **Learnings:**
+  - Patterns discovered
+  - Gotchas encountered
+---
+
+## Codebase Patterns
+
+Add reusable patterns to the TOP of progress.log:
+
+## Codebase Patterns
+- Migrations: Use IF NOT EXISTS
+- React: useRef<Timeout | null>(null)
+
+## Stop Condition
+
+If ALL stories pass, reply:
+<promise>COMPLETE</promise>
+
+Otherwise end normally.
+```
+
+
+## How To
+
+Ralph isn't just "a loop that codes." It's a funnel with 3 Phases, 2 Prompts,
+and 1 Loop.
+
+### Phase 1. Define Requirements (LLM conversation)
+
+1. Discuss project ideas, identify JTBD (jobs to be done)
+2. Break individual JTBD info topics of concern
+3. Use subagents to load info from URLs into context
+4. subagent writes specs/FILENAME.md for each topic
+
+### Phase 2 / 3 -- Run Ralph Loop (two modes, swap `PROMPT.md` as needed)
+
+Same loop mechanism, different prompts.
+
+#### Plan Mode
+
+If no plan exists, or plan is stale/wrong. Generate/update
+`IMPLEMENTATION_PLAN.md` only.
+
+
+# Build Mode
+
+'BUILDING' prompt assumes plan exists, picks tasks from it, implements,
+runs tests (backpressure), commits.
+
+
 
 
 ## Memory
