@@ -257,3 +257,5 @@ Execute one story per iteration
   - [the recipes](https://github.com/block/goose/tree/main/documentation/src/pages/recipes/data/recipes)
     + [web-accessibility-auditor.yaml](https://github.com/block/goose/blob/main/documentation/src/pages/recipes/data/recipes/web-accessibility-auditor.yaml)
 * [another ralph implementation](https://github.com/frankbria/ralph-claude-code)
+* [Symphony](https://github.com/openai/symphony/) -- turns project work into
+  isolated, autonomous implementation runs
