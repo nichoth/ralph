@@ -28,7 +28,7 @@ See
     + [Phase 2 / 3 -- Run Ralph Loop (two modes, swap `PROMPT.md` as needed)](#phase-2--3----run-ralph-loop-two-modes-swap-promptmd-as-needed)
 - [Build Mode](#build-mode)
   * [Memory](#memory)
-    + [PRD (JSON)](#prd-json)
+    + [PRD (Product Requirements Document [`JSON`])](#prd-product-requirements-document-json)
     + [Loop](#loop)
   * [See Also](#see-also)
 
@@ -166,7 +166,7 @@ runs tests (backpressure), commits.
 Treat files and git as memory. Do not put memories in the model context.
 State persists in `.ralph/`.
 
-### PRD (JSON)
+### PRD (Product Requirements Document [`JSON`])
 
 Defines stories, gates, and status
 
