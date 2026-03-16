@@ -259,3 +259,4 @@ Execute one story per iteration
 * [another ralph implementation](https://github.com/frankbria/ralph-claude-code)
 * [Symphony](https://github.com/openai/symphony/) -- turns project work into
   isolated, autonomous implementation runs
+* [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/)
