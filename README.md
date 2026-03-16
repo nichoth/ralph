@@ -8,6 +8,9 @@ Run once:
 /ralph-loop "Your task description" --completion-promise "DONE"
 ```
 
+See [official plugin docs](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum).
+
+
 ## Memory
 
 Treat files and git as memory. Do not put memories in the model context.
@@ -94,3 +97,5 @@ Execute one story per iteration
   "A quick guide to Ralph Wiggum"
 * [awesomeclaude.ai/ralph-wiggum](https://awesomeclaude.ai/ralph-wiggum)
 * [github.com/anthropics/claude-code/ralph-wiggum](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum)
+  -- the official Ralph plugin
+* [Ship Features in Your Sleep with Ralph Loops](https://www.geocod.io/code-and-coordinates/2026-01-27-ralph-loops/)
