@@ -67,16 +67,18 @@ fails a specific way, add a sign to help him next time.
 chmod +x ralph.sh
 ```
 
+#### Run the loop
+
+5 iterations in this example.
+
+```sh
+./ralph.sh 5
+```
+
 ### do one thing per loop
 
 It's about keeping the context window small.
 
-
-### Claude
-
-```sh
-claude --dangerously-skip-permissions
-```
 
 ### `PROMPT.md`
 
