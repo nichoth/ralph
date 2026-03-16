@@ -251,3 +251,5 @@ Execute one story per iteration
 * [Ship Features in Your Sleep with Ralph Loops](https://www.geocod.io/code-and-coordinates/2026-01-27-ralph-loops/)
 * [Verification-Driven Development (VDD)](https://gist.github.com/dollspace-gay/45c95ebfb5a3a3bae84d8bebd662cc25)
 * [agents.md](https://agents.md/)
+* [Various recipes for Ralph](https://block.github.io/goose/docs/tutorials/ralph-loop/)
+  - [the recipes](https://github.com/block/goose/tree/main/documentation/src/pages/recipes/data/recipes)
