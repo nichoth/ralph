@@ -38,10 +38,16 @@ See
 
 ## Need to do these things:
 
-1. Define requirements -- see [`./specs/prd.json`](./specs/prd.json).
-2. Create a `PROMPT.md` file &mdash; can copy + paste [PROMPT.md](./PROMPT.md).
-   The `PROMPT.md` file defines a stopping condition that will be printed on
-   success. The stop text is watched for the the [./ralph.sh script](./ralph.sh).
+### 1. Define requirements
+
+see [`./specs/prd.json`](./specs/prd.json).
+
+### 2. Create a `PROMPT.md` file
+
+Can copy + paste [PROMPT.md](./PROMPT.md).
+
+The `PROMPT.md` file defines a stopping condition that will be printed on
+success. The stop text is watched for the the [./ralph.sh script](./ralph.sh).
 
 ### 3. Start Ralph in a loop of 5 iterations
 
@@ -260,3 +266,4 @@ Execute one story per iteration
 * [Symphony](https://github.com/openai/symphony/) -- turns project work into
   isolated, autonomous implementation runs
 * [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/)
+* [github.com/snarktank/ralph](https://github.com/snarktank/ralph)
