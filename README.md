@@ -10,7 +10,7 @@ See
 * [repomirror/repomirror.md](https://github.com/repomirrorhq/repomirror/blob/main/repomirror.md)
 * [The Ralph Video](https://youtu.be/4Nna09dG_c0)
 * ["starts with a conversation"](https://youtu.be/4Nna09dG_c0?t=532)
-* ["It's a dance, folks. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0)
+* ["It's a dance. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0?t=992)
 * ["Today we're going to create specs"](https://youtu.be/4Nna09dG_c0?t=721)
 * ["How do you build specs? It's really simple"](https://youtu.be/4Nna09dG_c0?t=832)
 
@@ -159,7 +159,7 @@ and 1 Loop.
 
 > I want to add product analytics like posthog into loom. It would be used by 
 > products built on loom. Thus we are collecting information about non-authenticated
-> users. Lets have a discussion, and you can internview me.
+> users. Lets have a discussion, and you can interview me.
 
 ### Phase 2 / 3 -- Run Ralph Loop (two modes, swap `PROMPT.md` as needed)
 
