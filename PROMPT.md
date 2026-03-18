@@ -11,10 +11,12 @@ Write some tests for this serverside rendered app template.
    every session.
 2. SCOPE: Pick the highest priority task where `passes: false`. Work ONLY on
    that task.
-3. VERIFY: You must run `npm run lint` and `npm test` after any code change.
-4. DOCUMENT: Update `progress.log` with what was changed and any new
+3. WRITE TESTS: Before implementing, write failing tests for the feature/bug,
+   then make the tests pass
+4. VERIFY: You must run `npm run lint` and `npm test` after any code change.
+5. DOCUMENT: Update `progress.log` with what was changed and any new
    patterns discovered.
-5. COMMIT: If tests pass, commit with a descriptive message
+6. COMMIT: If tests pass, commit with a descriptive message
    like `FEATURE: [TaskID] - [Description]`.
 
 # STOP CONDITION

@@ -9,8 +9,10 @@ See
 * [everything is a ralph loop](https://ghuntley.com/loop/)
 * [repomirror/repomirror.md](https://github.com/repomirrorhq/repomirror/blob/main/repomirror.md)
 * [The Ralph Video](https://youtu.be/4Nna09dG_c0)
-* ["starts with a conversation"](https://youtu.be/4Nna09dG_c0)
+* ["starts with a conversation"](https://youtu.be/4Nna09dG_c0?t=532)
 * ["It's a dance, folks. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0)
+* ["Today we're going to create specs"](https://youtu.be/4Nna09dG_c0?t=721)
+* ["How do you build specs? It's really simple"](https://youtu.be/4Nna09dG_c0?t=832)
 
 <details><summary><h2>Contents</h2></summary>
 
@@ -146,10 +148,18 @@ and 1 Loop.
 
 ### Phase 1. Define Requirements (LLM conversation)
 
+["It starts with a conversation."](https://youtu.be/4Nna09dG_c0?t=532)
+
+> the conversation creates specs
+
 1. Discuss project ideas, identify JTBD (jobs to be done)
 2. Break individual JTBD info topics of concern
 3. Use subagents to load info from URLs into context
 4. subagent writes specs/FILENAME.md for each topic
+
+> I want to add product analytics like posthog into loom. It would be used by 
+> products built on loom. Thus we are collecting information about non-authenticated
+> users. Lets have a discussion, and you can internview me.
 
 ### Phase 2 / 3 -- Run Ralph Loop (two modes, swap `PROMPT.md` as needed)
 
