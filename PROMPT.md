@@ -1,3 +1,6 @@
+study NOTES/architecture.md
+study NOTES/product.md
+
 # MISSION
 
 Write some tests for this serverside rendered app template.
