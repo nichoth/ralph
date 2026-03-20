@@ -1,8 +1,14 @@
 # Ralph
 
-So how do you use this Ralph thing?
+The Ralph loop optimizes the model's context use. The less you use in the
+context window, the better outcomes you get.
 
-See
+Three parts: [the prompt](./PROMPT.md), the [loop itself](./ralph.sh), and
+the [PIN](#pin).
+
+---
+
+See also
 
 * [The Ralph Playbook](https://github.com/ghuntley/how-to-ralph-wiggum).
 * [The Ralph Playbook 2](https://claytonfarr.github.io/ralph-playbook/)
@@ -13,24 +19,28 @@ See
 * ["It's a dance. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0?t=992)
 * ["Today we're going to create specs"](https://youtu.be/4Nna09dG_c0?t=721)
 * ["How do you build specs? It's really simple"](https://youtu.be/4Nna09dG_c0?t=832)
+* ["This is now my pin"](https://youtu.be/4Nna09dG_c0?t=784)
+* ["Show you how you create specs"](https://youtu.be/4Nna09dG_c0?t=726)
 
 <details><summary><h2>Contents</h2></summary>
 
 <!-- toc -->
 
-  * [Need to do these things:](#need-to-do-these-things)
+  * [Need to do these things](#need-to-do-these-things)
+    + [1. Define requirements](#1-define-requirements)
+    + [2. Create a `PROMPT.md` file](#2-create-a-promptmd-file)
     + [3. Start Ralph in a loop of 5 iterations](#3-start-ralph-in-a-loop-of-5-iterations)
+  * [PIN](#pin)
   * [The Ralph Script](#the-ralph-script)
     + [Make executable](#make-executable)
     + [do one thing per loop](#do-one-thing-per-loop)
-    + [Claude](#claude)
     + [`PROMPT.md`](#promptmd)
   * [How To](#how-to)
     + [Phase 1. Define Requirements (LLM conversation)](#phase-1-define-requirements-llm-conversation)
     + [Phase 2 / 3 -- Run Ralph Loop (two modes, swap `PROMPT.md` as needed)](#phase-2--3----run-ralph-loop-two-modes-swap-promptmd-as-needed)
 - [Build Mode](#build-mode)
   * [Memory](#memory)
-    + [PRD (Product Requirements Document [`JSON`])](#prd-product-requirements-document-json)
+    + [PRD (Product Requirements Document [`prd.json`])](#prd-product-requirements-document-prdjson)
     + [Loop](#loop)
   * [See Also](#see-also)
 
@@ -38,7 +48,7 @@ See
 
 </details>
 
-## Need to do these things:
+## Need to do these things
 
 ### 1. Define requirements
 
@@ -56,6 +66,33 @@ success. The stop text is watched for the the [./ralph.sh script](./ralph.sh).
 ```sh
 ./ralph.sh 5
 ```
+
+---
+
+## The Specs
+
+Have a conversation with Claude that results in `specs/prd.json`. "Let's have
+a discussion, and you can interview me."
+
+### See Also
+
+* ["Show you how you create specs"](https://youtu.be/4Nna09dG_c0?t=726)
+* ["So how do you build specs? It's really simple."](https://youtu.be/4Nna09dG_c0?t=832)
+
+## PIN
+
+A typical PIN is stored at `specs/README.md`. It is A specialized index or
+lookup table designed to prevent AI agents from hallucinating code.
+See [`./spec/README.md`](./specs/README.md)
+
+* Primary function is as a **discovery map**.
+* Provides a dense list of synonyms and related keywords
+  ("generative words") for every feature
+
+
+### See Also
+
+* ["This is now my pin"](https://youtu.be/4Nna09dG_c0?t=784)
 
 ---
 
@@ -184,7 +221,7 @@ runs tests (backpressure), commits.
 Treat files and git as memory. Do not put memories in the model context.
 State persists in `.ralph/`.
 
-### PRD (Product Requirements Document [`JSON`])
+### PRD (Product Requirements Document [`prd.json`])
 
 Defines stories, gates, and status
 
@@ -277,3 +314,7 @@ Execute one story per iteration
   isolated, autonomous implementation runs
 * [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/)
 * [github.com/snarktank/ralph](https://github.com/snarktank/ralph)
+
+### [snarktank/ralph](https://github.com/snarktank/ralph)
+
+
