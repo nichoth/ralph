@@ -153,4 +153,3 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
 done
 
 echo -e "\n\033[1;31m⚠️ Loop reached max iterations.\033[0m"
-
