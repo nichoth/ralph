@@ -18,6 +18,7 @@ Write some tests for this serverside rendered app template.
    patterns discovered.
 6. COMMIT: If tests pass, commit with a descriptive message
    like `FEATURE: [TaskID] - [Description]`.
+7. ATOMICITY: Aim to complete exactly one task per iteration.
 
 # STOP CONDITION
 
