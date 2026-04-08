@@ -8,7 +8,7 @@ Write some tests for this serverside rendered app template.
 ## Important
 
 - Commit frequently
-- Read the Codebase Patterns section in progress.txt before starting
+- Read the Codebase Patterns section in progress.log before starting
 
 
 ## EXECUTION RULES
@@ -36,7 +36,7 @@ Write some tests for this serverside rendered app template.
 
 ## Progress Report Format
 
-APPEND to progress.txt (never replace, always append):
+APPEND to progress.log (never replace, always append):
 ```
 ## [Date/Time] - [Story ID]
 Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
@@ -54,7 +54,7 @@ The learnings section is critical - it helps future iterations avoid repeating m
 
 ## Consolidate Patterns
 
-If you discover a **reusable pattern** that future iterations should know, add it to the `## Codebase Patterns` section at the TOP of progress.txt (create it if it doesn't exist). This section should consolidate the most important learnings:
+If you discover a **reusable pattern** that future iterations should know, add it to the `## Codebase Patterns` section at the TOP of progress.log (create it if it doesn't exist). This section should consolidate the most important learnings:
 
 Only add patterns that are **general and reusable**, not story-specific details.
 
@@ -80,7 +80,7 @@ Before committing, check if any edited files have learnings worth preserving in 
 **Do NOT add:**
 - Story-specific implementation details
 - Temporary debugging notes
-- Information already in progress.txt
+- Information already in progress.log
 
 Only update AGENTS.md if you have **genuinely reusable knowledge** that would help future work in that directory.
 
