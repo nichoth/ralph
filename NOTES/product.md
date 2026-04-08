@@ -11,4 +11,3 @@ Feature ABC.
 ### Product Positioning
 
 ### 1. The "Feature" ABC
-
