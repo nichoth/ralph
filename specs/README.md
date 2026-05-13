@@ -1,9 +1,11 @@
-# Specifications Index (The PIN)
+# Ralph Loop
+
+## Specifications Index (The PIN)
 
 This file is the source of truth for all system capabilities. 
 Before implementing new code, use this index to find existing patterns.
 
-## [Feature Name]
+### [Feature Name]
 
 - **Keywords**: [Synonym 1], [Synonym 2], [Related Tech], [Library Name],
   [Action Verb], [Database Table]
@@ -11,7 +13,7 @@ Before implementing new code, use this index to find existing patterns.
 
 ---
 
-## Example: User Authentication
+### Example: User Authentication
 
 - **Keywords**: auth, login, logout, sign-in, signup, register, JWT, session, cookie, middleware, identity, credentials, password reset, 2FA, MFA, token.
 - **Spec Path**: [specs/auth.md](./auth.md)

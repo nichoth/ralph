@@ -5,7 +5,7 @@ PROMPT_FILE="PROMPT.md"
 PRD_FILE="specs/prd.json"
 LOG_FILE="progress.log"
 MAX_ITERATIONS=${1:-10}
-STALEMATE_THRESHOLD=2 # Escalate quickly for P0 tasks
+STALEMATE_THRESHOLD=2  # Escalate quickly for P0 tasks
 ITERATION=0
 STALLED_COUNT=0
 REASONING_LEVEL="medium"
@@ -70,15 +70,15 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
 
     # 4. Execute Autonomous Agent
     # We pipe to 'tee' so you see the stream, but we also capture for the STOP CONDITION
-    # tmp_response=$(mktemp)
+    tmp_response=$(mktemp)
     log_info "Claude is executing plan..."
 
-    claude --effort "$REASONING_LEVEL" --dangerously-skip-permissions "$(cat $PROMPT_FILE)"
+    # claude --effort "$REASONING_LEVEL" --dangerously-skip-permissions "$(cat $PROMPT_FILE)"
     
-    # cat "$PROMPT_FILE" | claude --effort "$REASONING_LEVEL" --dangerously-skip-permissions -p | tee "$tmp_response"
+    cat "$PROMPT_FILE" | claude --model sonet --effort "$REASONING_LEVEL" --dangerously-skip-permissions -p | tee "$tmp_response"
     
-    # RESPONSE=$(cat "$tmp_response")
-    # rm "$tmp_response"
+    RESPONSE=$(cat "$tmp_response")
+    rm "$tmp_response"
 
     # 5. Post-Run Analysis
     POST_COMMIT=$(git rev-parse HEAD)

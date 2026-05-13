@@ -69,6 +69,19 @@ success. The stop text is watched for the the [./ralph.sh script](./ralph.sh).
 
 ---
 
+## PRD
+
+Have the agent interview you to determine the PRD document.
+I have a *skill* installed in my `~/.claude/skills` directory at
+path `~/.claude/skills/prd/SKILL.md`. That's how you install a skill.
+You just paste some markdown to a specific location in your home directory.
+
+See [./skills/prd](./skills/prd/SKILL.md).
+
+
+---
+
+
 ## The Specs
 
 Have a conversation with Claude that results in `specs/prd.json`. "Let's have
