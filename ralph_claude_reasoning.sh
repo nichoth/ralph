@@ -29,7 +29,7 @@ TMP_CAPTURE=""
 # With STALL_LIMIT=4 the loop runs at stall 0,1,2,3 before bailing, so all four
 # tiers fire. Progress resets STALLED_COUNT=0, which drops effort back to the
 # baseline automatically -- no separate "reset to medium" logic needed.
-EFFORT_TIERS=("medium" "high" "xhigh" "max")
+EFFORT_TIERS=("medium" "high" "max")
 
 # --- UI Colors --------------------------------------------------------------
 BLUE='\033[1;34m'; YELLOW='\033[1;33m'; GREEN='\033[1;32m'; MAGENTA='\033[1;35m'; RED='\033[1;31m'; NC='\033[0m'
