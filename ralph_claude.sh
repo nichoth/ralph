@@ -23,6 +23,14 @@ STALLED_COUNT=0
 TMP_CONTEXT=""                   # globals so the EXIT trap can clean them up
 TMP_CAPTURE=""
 
+# Adaptive reasoning ladder, indexed by stall count (clamps at the last entry).
+# Valid levels: low | medium | high | xhigh | max -- AVAILABILITY DEPENDS ON THE
+# MODEL. If your $MODEL rejects a level (e.g. "max"), trim the high end here.
+# With STALL_LIMIT=4 the loop runs at stall 0,1,2,3 before bailing, so all four
+# tiers fire. Progress resets STALLED_COUNT=0, which drops effort back to the
+# baseline automatically -- no separate "reset to medium" logic needed.
+EFFORT_TIERS=("medium" "high" "max")
+
 # --- UI Colors --------------------------------------------------------------
 BLUE='\033[1;34m'; YELLOW='\033[1;33m'; GREEN='\033[1;32m'; MAGENTA='\033[1;35m'; RED='\033[1;31m'; NC='\033[0m'
 log_info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
@@ -69,10 +77,21 @@ current_task() {
     ' "$PRD_FILE" 2>/dev/null
 }
 
+# Map the stall count onto a reasoning effort level from EFFORT_TIERS, clamping
+# at the last tier. This is the model-side half of escalation: it raises the
+# actual thinking budget via `claude --effort`. The prompt-side half lives in
+# reasoning_hint() below; both ramp on the same counter and stay in sync.
+effort_for_stall() {
+    local n="$1" last=$(( ${#EFFORT_TIERS[@]} - 1 ))
+    [ "$n" -gt "$last" ] && n="$last"
+    echo "${EFFORT_TIERS[$n]}"
+}
+
 # Reasoning hint injected into the prompt, escalating with the stall count.
 # With STALL_LIMIT=4 the hint is evaluated at stall 0,1,2,3 -> all tiers fire
 # before the loop bails. (Prompt-based escalation is version-proof; it doesn't
-# rely on any particular `claude` reasoning flag existing.)
+# rely on any particular `claude` reasoning flag existing.) This reinforces the
+# `--effort` ladder driven by effort_for_stall().
 reasoning_hint() {
     case "$1" in
         0) echo "" ;;
@@ -101,6 +120,9 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     PENDING_BEFORE="$(count_pending)"
     HEAD_BEFORE="$(git rev-parse HEAD 2>/dev/null || echo none)"
 
+    # 1b. Pick this session's reasoning effort from the current stall count.
+    EFFORT="$(effort_for_stall "$STALLED_COUNT")"
+
     # 2. Stall-driven friction relief: wipe stale local wrangler state.
     if [ "$STALLED_COUNT" -eq 2 ] && [ -d ".wrangler/state/v3" ]; then
         log_warn "Friction detected — clearing .wrangler/state/v3 ..."
@@ -108,7 +130,7 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     fi
 
     echo -e "${BLUE}------------------------------------------------------------${NC}"
-    log_info "ITERATION $ITERATION/$MAX_ITERATIONS  |  PENDING: $PENDING_BEFORE  |  STALL: $STALLED_COUNT/$STALL_LIMIT"
+    log_info "ITERATION $ITERATION/$MAX_ITERATIONS  |  PENDING: $PENDING_BEFORE  |  STALL: $STALLED_COUNT/$STALL_LIMIT  |  EFFORT: $EFFORT"
     log_step "TARGET: $TASK"
     echo -e "${BLUE}------------------------------------------------------------${NC}"
 
@@ -136,16 +158,18 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     # 4. Execute one session. Stream events live for the human; tee the RAW jsonl
     #    to a capture file. tee sits BETWEEN claude and jq, so the capture holds
     #    claude's stdout regardless of any downstream jq hiccup.
+    #    --effort raises the model-side reasoning budget as stalls accumulate.
     TMP_CAPTURE="$(mktemp)"
     set +o pipefail
-    cat "$TMP_CONTEXT" | claude -p --verbose \
-          --output-format stream-json \
-          --model "$MODEL" \
-          --max-turns "$MAX_TURNS_PER_SESSION" \
-          --dangerously-skip-permissions \
-      | tee "$TMP_CAPTURE" \
-      | jq --unbuffered -r '
-          if .type == "system" then "🟦 session start"
+    cat "$TMP_CONTEXT" | claude -p --verbose --output-format stream-json --model "$MODEL" --effort "$EFFORT" --max-turns "$MAX_TURNS_PER_SESSION" --dangerously-skip-permissions | tee "$TMP_CAPTURE" | jq --unbuffered -r '
+          if .type == "system" then
+            ( .subtype as $s
+              | if   $s == "init"             then "🟦 session start (" + (.model // "?") + ")"
+                elif $s == "api_retry"        then "⏳ retry " + ((.attempt // 0)|tostring) + "/" + ((.max_retries // 0)|tostring)
+                                                    + " — " + (.error // "?") + " " + ((.error_status // "")|tostring)
+                elif $s == "compact_boundary" then "🗜️  context compacted"
+                elif $s == "thinking_tokens"  then "🧠 thinking: " + ([to_entries[] | select(.value|type=="number") | "\(.key)=\(.value)"] | join(" "))
+                else "🟦 system: " + ($s // "?") end )
           elif .type == "assistant" then
             (.message.content[]? |
               if .type == "text"     then "💬 " + .text
@@ -162,7 +186,7 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     set -o pipefail
     CLAUDE_RC="${PSTATUS[1]:-0}"   # 0=cat 1=claude 2=tee 3=jq
     if [ "$CLAUDE_RC" -ne 0 ]; then
-        log_warn "claude exited non-zero (rc=$CLAUDE_RC) — auth/rate-limit/crash? Treating as no progress."
+        log_warn "claude exited non-zero (rc=$CLAUDE_RC) — auth/rate-limit/crash/unsupported --effort? Treating as no progress."
     fi
 
     # 5. Detect completion — but ONLY trust it if the PRD agrees all tasks pass.
@@ -191,11 +215,11 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
         if [ "$DELTA" -gt 1 ]; then
             log_warn "Pending dropped by $DELTA (>1) — session completed more than one task. Tighten the prompt if this recurs."
         fi
-        log_success "Progress (commits: $HEAD_BEFORE → $HEAD_AFTER, pending: $PENDING_BEFORE → $PENDING_AFTER)."
+        log_success "Progress (commits: $HEAD_BEFORE → $HEAD_AFTER, pending: $PENDING_BEFORE → $PENDING_AFTER). Effort resets to ${EFFORT_TIERS[0]}."
         STALLED_COUNT=0
     else
         STALLED_COUNT=$((STALLED_COUNT + 1))
-        log_warn "No progress this session (stall $STALLED_COUNT/$STALL_LIMIT)."
+        log_warn "No progress this session (stall $STALLED_COUNT/$STALL_LIMIT). Next effort: $(effort_for_stall "$STALLED_COUNT")."
     fi
 
     # Clean this iteration's tempfiles now (the EXIT trap is the safety net).

@@ -5,8 +5,6 @@
 ## Important
 
 - Commit frequently.
-- Read the `## Codebase Patterns` section at the top of `progress.log`
-  before starting.
 - Complete exactly ONE task this session, then stop.
 
 # EXECUTION RULES
