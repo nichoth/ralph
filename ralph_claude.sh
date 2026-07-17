@@ -18,8 +18,10 @@ MODEL="sonnet"
 MAX_ITERATIONS=${1:-10}
 MAX_TURNS_PER_SESSION=${2:-80}   # hard ceiling so a single session can't run away
 STALL_LIMIT=4                    # bail after this many no-progress iterations
+FAILED_SESSION_LIMIT=3           # bail after this many failed Claude sessions
 ITERATION=0
 STALLED_COUNT=0
+FAILED_SESSION_COUNT=0
 TMP_CONTEXT=""                   # globals so the EXIT trap can clean them up
 TMP_CAPTURE=""
 
@@ -186,7 +188,24 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     set -o pipefail
     CLAUDE_RC="${PSTATUS[1]:-0}"   # 0=cat 1=claude 2=tee 3=jq
     if [ "$CLAUDE_RC" -ne 0 ]; then
-        log_warn "claude exited non-zero (rc=$CLAUDE_RC) — auth/rate-limit/crash/unsupported --effort? Treating as no progress."
+        FAILED_SESSION_COUNT=$((FAILED_SESSION_COUNT + 1))
+        log_warn "claude exited non-zero (rc=$CLAUDE_RC) — auth/rate-limit/crash/unsupported --effort?"
+        log_warn "Claude failures in a row: $FAILED_SESSION_COUNT/$FAILED_SESSION_LIMIT."
+    elif [ "$FAILED_SESSION_COUNT" -gt 0 ]; then
+        log_info "Claude session recovered. Resetting failure counter."
+        FAILED_SESSION_COUNT=0
+    fi
+
+    if [ "$FAILED_SESSION_COUNT" -ge "$FAILED_SESSION_LIMIT" ]; then
+        rm -f "$TMP_CONTEXT" "$TMP_CAPTURE"
+        TMP_CONTEXT=""
+        TMP_CAPTURE=""
+        log_error "Failed $FAILED_SESSION_LIMIT Claude sessions in a row. Stopping for human review."
+        exit 4
+    fi
+
+    if [ "$CLAUDE_RC" -ne 0 ]; then
+        log_warn "Treating this session as no progress."
     fi
 
     # 5. Detect completion — but ONLY trust it if the PRD agrees all tasks pass.
