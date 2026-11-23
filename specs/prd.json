@@ -90,8 +90,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Temporary Tiiny provider extension and per-session turn cap added; shell validation passes."
     },
     {
       "id": "US-004",

@@ -160,3 +160,85 @@ SELECTED_ID=$(printf '%s' "$SELECTED_MODEL" | jq -r '.id')
 SELECTED_NAME=$(printf '%s' "$SELECTED_MODEL" |
     jq -r '.name // .id')
 printf 'Selected Tiiny model: %s (%s)\n' "$SELECTED_NAME" "$SELECTED_ID"
+
+# The extension is deliberately process-local.  Pi loads it with -e for each
+# fresh session, so registration never changes Pi's persistent model catalog.
+PI_EXTENSION=""
+cleanup_pi_extension() {
+    if [ -n "$PI_EXTENSION" ] && [ -f "$PI_EXTENSION" ]; then
+        /bin/rm -f "$PI_EXTENSION"
+    fi
+}
+trap cleanup_pi_extension EXIT HUP INT TERM
+
+TIINY_ENDPOINT=$(printf '%s' "$SELECTED_MODEL" | jq -r '
+    def endpoint:
+      (.endpoint // .baseUrl // .apiEndpoint // empty);
+    if (endpoint | type) == "string" then endpoint
+    elif endpoint == null or endpoint == "" then empty
+    else error("endpoint is not a string") end
+' 2>/dev/null) || preflight_error 'Tiiny returned malformed endpoint data'
+if [ -n "$TIINY_ENDPOINT" ] && [ -n "${TIINY_BASE_URL:-}" ] &&
+    [ "$TIINY_ENDPOINT" != "$TIINY_BASE_URL" ]; then
+    preflight_error 'loaded model and Tiiny inference endpoints do not match'
+fi
+TIINY_ENDPOINT=${TIINY_ENDPOINT:-${TIINY_BASE_URL:-http://127.0.0.1:8000/v1}}
+
+PI_EXTENSION="${TMPDIR:-/tmp}/ralph-tiiny-extension.$$.$RANDOM.ts"
+: > "$PI_EXTENSION" || preflight_error 'cannot create temporary Pi extension'
+export RALPH_PI_EXTENSION="$PI_EXTENSION"
+export RALPH_TIINY_MODEL="$SELECTED_ID"
+export RALPH_TIINY_ENDPOINT="$TIINY_ENDPOINT"
+export RALPH_MAX_TURNS="$MAX_TURNS_PER_SESSION"
+/bin/cat > "$PI_EXTENSION" <<'PI_EXTENSION_SOURCE'
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+const modelId = process.env.RALPH_TIINY_MODEL;
+const endpoint = process.env.RALPH_TIINY_ENDPOINT;
+const maxTurns = Number(process.env.RALPH_MAX_TURNS);
+
+if (!modelId || !endpoint || !Number.isSafeInteger(maxTurns) || maxTurns < 1) {
+  throw new Error("invalid Tiiny extension configuration");
+}
+
+export default function (pi: ExtensionAPI) {
+  let modelTurns = 0;
+
+  pi.registerProvider("tiiny", {
+    name: "Tiiny",
+    baseUrl: endpoint,
+    apiKey: "$TIINY_API_KEY",
+    api: "openai-completions",
+    models: [{
+      id: modelId,
+      name: modelId,
+      reasoning: true,
+      input: ["text", "image"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 131072,
+      maxTokens: 16384,
+    }],
+  });
+
+  pi.on("session_start", async () => {
+    modelTurns = 0;
+  });
+
+  pi.on("turn_end", async (_event, ctx) => {
+    modelTurns += 1;
+    if (modelTurns >= maxTurns) {
+      process.stderr.write(
+        `Tiiny turn cap reached: ${modelTurns}/${maxTurns}\n`,
+      );
+      ctx.abort();
+    }
+  });
+}
+PI_EXTENSION_SOURCE
+
+# Pi's TypeScript loader resolves the installed API package.  Keep this as a
+# callable shell function so the session loop can load a fresh extension.
+run_pi_session() {
+    pi --no-session --mode json --extension "$PI_EXTENSION" \
+        --model "tiiny/$SELECTED_ID" --thinking high -p
+}

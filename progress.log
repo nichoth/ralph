@@ -45,4 +45,29 @@ Branch: ralph/tiiny-runner
     only `running` and `loaded` entries are eligible.
   - Tiiny CLI discovery is read-only and uses its active device context, so
     the runner must not add connect, scan, load, or unload operations.
+
+## 2026-11-23 02:15 PST - US-003
+- Added a process-local temporary Pi TypeScript extension generated after
+  model selection and cleaned up on normal exit and signals.
+- The extension registers the selected Tiiny model with explicit safe
+  metadata, the selected endpoint, existing TIINY_API_KEY auth, and
+  reasoning support. It is loaded through `run_pi_session` with fresh
+  non-session mode, the selected model, and high thinking enabled.
+- Added a per-session model-turn counter reset at session start. At the
+  configured cap it records a diagnostic and calls `ctx.abort()`; tool
+  activity does not increment the counter because counting is attached to
+  Pi turn events.
+- Added endpoint alignment validation and rejected malformed endpoint data.
+- Files changed: ralph_tiiny.sh, specs/prd.json, progress.log.
+- Validation: 63 offline CLI cases, bash -n, ShellCheck, line-length, and
+  git diff --check pass. Typecheck: N/A for the shell runner; the generated
+  extension uses the installed Pi ExtensionAPI contract.
+- **Learnings for future iterations:**
+  - Pi 1.6.0 supports runtime providers through `pi.registerProvider` and
+    session-scoped abort handling through `turn_end` plus `ctx.abort()`.
+  - Provider registration should use an exact `tiiny/<loaded-id>` target;
+    never substitute a catalog or fixed model ID.
+  - Keep the extension outside the repository and delete it with an exit
+    trap so Pi configuration remains untouched.
+---
 ---
