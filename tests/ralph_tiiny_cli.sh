@@ -119,6 +119,30 @@ expect_config() {
     expect_text "Requested model: $3"
 }
 
+run_loop_stub() {
+    cat > "$BIN/pi" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CALLS"
+if [ "${PI_MODE:-noop}" = fail ]; then
+        printf '%s\n' '{"type":"result","subtype":"error"}'
+        exit 9
+elif [ "${PI_MODE:-noop}" = commit ]; then
+        git add specs/prd.json
+        git commit -qm 'stub progress'
+elif [ "${PI_MODE:-noop}" = complete_one ]; then
+        jq '.userStories[0].passes = true' specs/prd.json \
+            > specs/prd.tmp && mv specs/prd.tmp specs/prd.json
+elif [ "${PI_MODE:-noop}" = complete_two ]; then
+        jq '.userStories[0].passes = true | .userStories[1].passes = true' \
+            specs/prd.json > specs/prd.tmp && mv specs/prd.tmp specs/prd.json
+fi
+printf '%s\n' '{"type":"assistant","message":{"content":['\
+    '{"type":"text","text":"done"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success"}'
+STUB
+    chmod +x "$BIN/pi"
+}
+
 # Start with the public help contract, independent of local prerequisites.
 new_case
 rm "$BIN/pi" "$BIN/tiiny" "$BIN/jq" "$BIN/git"
@@ -418,5 +442,61 @@ chmod +x "$BIN/pi"
 run_cli 1
 expect_status 0
 expect_text 'ignoring COMPLETE'
+
+# Progress is a new commit or fewer pending stories; dirty files alone stall.
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[{"id":"todo","title":"Todo"}]}
+JSON
+run_loop_stub
+PI_MODE=commit run_cli 1
+expect_status 0
+expect_text 'Progress (commits:'
+
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[{"id":"todo","title":"Todo"}]}
+JSON
+run_loop_stub
+PI_MODE=noop run_cli 4
+expect_status 2
+expect_text 'No progress this session (stall 4/4)'
+mkdir -p "$REPO/.wrangler/state/v3"
+PI_MODE=noop run_cli 3
+expect_status 0
+[ ! -d "$REPO/.wrangler/state/v3" ] || fail 'Wrangler state was not cleaned'
+
+# Three failed sessions stop with exit 4; a successful session resets failures.
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[{"id":"todo","title":"Todo"}]}
+JSON
+run_loop_stub
+PI_MODE=fail run_cli 3
+expect_status 4
+expect_text 'Failed 3 consecutive Pi sessions'
+
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[{"id":"todo","title":"Todo"}]}
+JSON
+run_loop_stub
+PI_MODE=fail run_cli 1
+expect_status 0
+PI_MODE=noop run_cli 1
+expect_status 0
+expect_text 'Reached MAX_ITERATIONS=1'
+
+# A session completing multiple stories is visible to the operator.
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[
+  {"id":"one","title":"One"}, {"id":"two","title":"Two"}
+]}
+JSON
+run_loop_stub
+PI_MODE=complete_two run_cli 1
+expect_status 0
+expect_text 'completed more than one task'
 
 printf 'PASS: %s offline Tiiny CLI cases\n' "$COUNT"
