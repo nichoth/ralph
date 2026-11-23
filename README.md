@@ -1,7 +1,6 @@
 # Ralph
 
-The Ralph loop optimizes the model's context use. The less you use in the
-context window, the better outcomes you get.
+The Ralph loop optimizes context use. Generally smaller context is better.
 
 Three parts: [the prompt](./PROMPT.md), the [loop itself](./ralph.sh), and
 the [PIN](#pin).
