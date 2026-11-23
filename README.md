@@ -167,19 +167,24 @@ only after a successful terminal event and zero pending stories.
 
 ### Offline verification
 
-The test suite uses stub commands and temporary Git repositories, so it does
-not connect to Tiiny or run real inference:
+Use Node.js 22.18 or newer. The test suite runs TypeScript directly with
+Node's built-in type stripping; no compilation step is needed. Tests use stub
+commands and temporary Git repositories, so they do not connect to Tiiny or
+run real inference:
 
 ```sh
+npm ci
+npm run lint
+npm run typecheck
 npm test
 bash -n ralph_tiiny.sh
 ```
 
-The generated extension is checked by Pi's TypeScript extension loader when a
-real session starts. This repository has no standalone TypeScript project or
-`npm run lint` script; shell-only validation therefore records typecheck as
-N/A for the runner itself. The offline tests cover the extension contract and
-the session turn-cap boundaries without contacting hardware.
+ESLint follows the `template-ts-browser` configuration. Type checking uses
+`tsc --noEmit` and covers the test suite. The generated extension is checked
+by Pi's TypeScript extension loader when a real session starts. The offline
+tests cover the extension contract and the session turn-cap boundaries
+without contacting hardware.
 
 ### Manual live-device smoke test
 
