@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ralph_tiiny.sh -- command line and preflight for the Tiiny task loop.
-# Pattern: Imperative Shell. Parse inputs, then check the local environment.
+# Parse inputs, then check the local environment.
 set -uo pipefail
 
 PROMPT_FILE="PROMPT.md"
