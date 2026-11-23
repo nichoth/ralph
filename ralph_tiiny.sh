@@ -169,11 +169,13 @@ printf 'Selected Tiiny model: %s (%s)\n' "$SELECTED_NAME" "$SELECTED_ID"
 # The extension is deliberately process-local.  Pi loads it with -e for each
 # fresh session, so registration never changes Pi's persistent model catalog.
 PI_EXTENSION=""
+# shellcheck disable=SC2317
 cleanup_pi_extension() {
     if [ -n "$PI_EXTENSION" ] && [ -f "$PI_EXTENSION" ]; then
         /bin/rm -f "$PI_EXTENSION"
     fi
 }
+# shellcheck disable=SC2317
 trap cleanup_pi_extension EXIT HUP INT TERM
 
 TIINY_ENDPOINT=$(printf '%s' "$SELECTED_MODEL" | jq -r '
@@ -304,8 +306,8 @@ classify_capture() {
         (.text | contains("<promise>COMPLETE</promise>"))))' \
         "$TMP_CAPTURE" >/dev/null 2>&1; then
         if [ "$pending" -eq 0 ]; then
-            printf '%s\n' 'MISSION ACCOMPLISHED — COMPLETE reported and 0 '
-                'tasks pending.'
+            printf '%s\n' 'MISSION ACCOMPLISHED — COMPLETE reported and' \
+                '0 tasks pending.'
             return 2
         fi
         printf 'ignoring COMPLETE: %s task(s) still pending\n' "$pending" >&2
@@ -350,12 +352,24 @@ reasoning_hint() {
 
 TMP_CONTEXT=""
 TMP_CAPTURE=""
+STALL_LIMIT=4
+FAILED_SESSION_LIMIT=3
+STALLED_COUNT=0
+FAILED_SESSION_COUNT=0
+# shellcheck disable=SC2317
 cleanup_loop_files() {
     /bin/rm -f "${TMP_CONTEXT:-}" "${TMP_CAPTURE:-}" 2>/dev/null || true
     cleanup_pi_extension
 }
+# shellcheck disable=SC2317
 trap cleanup_loop_files EXIT
-trap 'exit 130' INT
+# shellcheck disable=SC2317
+interrupt_cleanup() {
+    trap - INT TERM
+    jobs -pr | xargs -r kill 2>/dev/null || true
+    exit 130
+}
+trap interrupt_cleanup INT TERM
 
 ITERATION=0
 while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
@@ -369,6 +383,13 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     if [ -z "$TASK" ]; then
         printf 'All tasks in %s pass. Nothing left to do.\n' "$PRD_FILE"
         exit 0
+    fi
+
+    PENDING_BEFORE=$(count_pending)
+    HEAD_BEFORE=$(git rev-parse HEAD 2>/dev/null || printf 'none')
+    if [ "$STALLED_COUNT" -eq 2 ] && [ -d ".wrangler/state/v3" ]; then
+        printf '%s\n' 'Clearing stalled .wrangler/state/v3.' >&2
+        /bin/rm -rf -- .wrangler/state/v3
     fi
 
     TMP_CONTEXT=$(mktemp) || preflight_error 'cannot create session context'
@@ -404,9 +425,43 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
         fi
         [ "$OUTCOME" -eq 0 ] || PI_STATUS=1
     fi
+
+    if [ "$PI_STATUS" -ne 0 ]; then
+        FAILED_SESSION_COUNT=$((FAILED_SESSION_COUNT + 1))
+        printf 'Pi failures in a row: %s/%s.\n' \
+            "$FAILED_SESSION_COUNT" "$FAILED_SESSION_LIMIT" >&2
+    else
+        FAILED_SESSION_COUNT=0
+    fi
+    if [ "$FAILED_SESSION_COUNT" -ge "$FAILED_SESSION_LIMIT" ]; then
+        printf 'Failed %s consecutive Pi sessions; stopping.\n' \
+            "$FAILED_SESSION_LIMIT" >&2
+        exit 4
+    fi
+
+    HEAD_AFTER=$(git rev-parse HEAD 2>/dev/null || printf 'none')
+    if [ "$HEAD_AFTER" != "$HEAD_BEFORE" ] ||
+        [ "$PENDING_AFTER" -lt "$PENDING_BEFORE" ]; then
+        DELTA=$((PENDING_BEFORE - PENDING_AFTER))
+        if [ "$DELTA" -gt 1 ]; then
+            printf 'Warning: session completed more than one task.\n' >&2
+        fi
+        printf 'Progress (commits: %s -> %s, pending: %s -> %s).\n' \
+            "$HEAD_BEFORE" "$HEAD_AFTER" "$PENDING_BEFORE" \
+            "$PENDING_AFTER"
+        STALLED_COUNT=0
+    else
+        STALLED_COUNT=$((STALLED_COUNT + 1))
+        printf 'No progress this session (stall %s/%s).\n' \
+            "$STALLED_COUNT" "$STALL_LIMIT" >&2
+    fi
     /bin/rm -f "$TMP_CONTEXT" "$TMP_CAPTURE"
     TMP_CONTEXT=""
     TMP_CAPTURE=""
+    if [ "$STALLED_COUNT" -ge "$STALL_LIMIT" ]; then
+        printf 'Stalled %s sessions; stopping.\n' "$STALL_LIMIT" >&2
+        exit 2
+    fi
     [ "$PI_STATUS" -eq 0 ] ||
         printf 'Pi session exited with status %s.\n' "$PI_STATUS" >&2
 done

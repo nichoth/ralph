@@ -127,14 +127,16 @@ if [ "${PI_MODE:-noop}" = fail ]; then
         printf '%s\n' '{"type":"result","subtype":"error"}'
         exit 9
 elif [ "${PI_MODE:-noop}" = commit ]; then
-        git add specs/prd.json
+        printf '%s\n' stub >> progress.log
+        git add progress.log
         git commit -qm 'stub progress'
 elif [ "${PI_MODE:-noop}" = complete_one ]; then
         jq '.userStories[0].passes = true' specs/prd.json \
-            > specs/prd.tmp && mv specs/prd.tmp specs/prd.json
+            > specs/prd.tmp && /bin/mv specs/prd.tmp specs/prd.json
 elif [ "${PI_MODE:-noop}" = complete_two ]; then
         jq '.userStories[0].passes = true | .userStories[1].passes = true' \
-            specs/prd.json > specs/prd.tmp && mv specs/prd.tmp specs/prd.json
+            specs/prd.json > specs/prd.tmp && \
+            /bin/mv specs/prd.tmp specs/prd.json
 fi
 printf '%s\n' '{"type":"assistant","message":{"content":['\
     '{"type":"text","text":"done"}]}}'

@@ -71,6 +71,8 @@ Branch: ralph/tiiny-runner
     trap so Pi configuration remains untouched.
 ---
 
+
+
 ## 2026-11-23 03:30 PST - US-005
 - Added live rendering for Pi system, retry, compaction, assistant text,
   tool, tool-result, and terminal events while retaining raw JSONL capture.
@@ -107,4 +109,24 @@ Branch: ralph/tiiny-runner
   - Pi receives each session prompt through stdin and must be invoked fresh;
     the next story will own event rendering and outcome classification.
 ---
+---
+
+## 2026-11-23 04:10 PST - US-006
+- Added HEAD and pending-story progress tracking around every Pi session.
+- Added stall escalation, prompt hints, Wrangler state cleanup at stall 2,
+  exit 2 after four no-progress sessions, and exit 4 after three failures.
+- Reset failure and stall counters after recovery/progress, warned on sessions
+  completing multiple stories, and added interrupt child cleanup.
+- Added offline tests for commits, stalls, cleanup, failure reset/limits, and
+  multi-story warnings; 75 cases pass.
+- Files changed: ralph_tiiny.sh, tests/ralph_tiiny_cli.sh, specs/prd.json,
+  progress.log.
+- Validation: npm test and bash -n pass; ShellCheck pass. npm run lint is
+  unavailable because package.json defines no lint script. Typecheck: N/A
+  (shell-only implementation).
+- **Learnings for future iterations:**
+  - A new commit or fewer pending stories is progress; dirty files alone are
+    intentionally insufficient to reset stalls.
+  - The turn-cap abort is routed through the same failed-session counter as
+    other non-successful terminal outcomes.
 ---
