@@ -5,26 +5,11 @@ The Ralph loop optimizes context use. Generally smaller context is better.
 Three parts: [the prompt](./PROMPT.md), the [loop itself](./ralph.sh), and
 the [PIN](#pin).
 
----
-
-See also
-
-* [The Ralph Playbook](https://github.com/ghuntley/how-to-ralph-wiggum).
-* [The Ralph Playbook 2](https://claytonfarr.github.io/ralph-playbook/)
-* [everything is a ralph loop](https://ghuntley.com/loop/)
-* [repomirror/repomirror.md](https://github.com/repomirrorhq/repomirror/blob/main/repomirror.md)
-* [The Ralph Video](https://youtu.be/4Nna09dG_c0)
-* ["starts with a conversation"](https://youtu.be/4Nna09dG_c0?t=532)
-* ["It's a dance. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0?t=992)
-* ["Today we're going to create specs"](https://youtu.be/4Nna09dG_c0?t=721)
-* ["How do you build specs? It's really simple"](https://youtu.be/4Nna09dG_c0?t=832)
-* ["This is now my pin"](https://youtu.be/4Nna09dG_c0?t=784)
-* ["Show you how you create specs"](https://youtu.be/4Nna09dG_c0?t=726)
-
 <details><summary><h2>Contents</h2></summary>
 
 <!-- toc -->
 
+  * [See also](#see-also)
   * [Need to do these things](#need-to-do-these-things)
     + [1. Define requirements](#1-define-requirements)
     + [2. Create a `PROMPT.md` file](#2-create-a-promptmd-file)
@@ -56,6 +41,22 @@ See also
 <!-- tocstop -->
 
 </details>
+
+## See also
+
+* [The Ralph Playbook](https://github.com/ghuntley/how-to-ralph-wiggum).
+* [The Ralph Playbook 2](https://claytonfarr.github.io/ralph-playbook/)
+* [everything is a ralph loop](https://ghuntley.com/loop/)
+* [repomirror/repomirror.md](https://github.com/repomirrorhq/repomirror/blob/main/repomirror.md)
+* [The Ralph Video](https://youtu.be/4Nna09dG_c0)
+* ["starts with a conversation"](https://youtu.be/4Nna09dG_c0?t=532)
+* ["It's a dance. This is how you build your specifications."](https://youtu.be/4Nna09dG_c0?t=992)
+* ["Today we're going to create specs"](https://youtu.be/4Nna09dG_c0?t=721)
+* ["How do you build specs? It's really simple"](https://youtu.be/4Nna09dG_c0?t=832)
+* ["This is now my pin"](https://youtu.be/4Nna09dG_c0?t=784)
+* ["Show you how you create specs"](https://youtu.be/4Nna09dG_c0?t=726)
+
+---
 
 ## Need to do these things
 
