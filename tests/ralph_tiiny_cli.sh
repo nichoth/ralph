@@ -11,6 +11,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 REAL_GIT=$(command -v git)
 REAL_BASH=$(command -v bash)
 REAL_TOUCH=$(command -v touch)
+REAL_JQ=$(command -v jq)
 COUNT=0
 
 fail() {
@@ -29,10 +30,30 @@ new_case() {
     printf '{"userStories": []}\n' > "$REPO/specs/prd.json"
     ln -s "$REAL_BASH" "$BIN/bash"
     ln -s "$REAL_TOUCH" "$BIN/touch"
+    ln -s "$REAL_JQ" "$BIN/jq"
     ln -s "$REAL_GIT" "$BIN/git"
-    for command in pi tiiny jq; do
+    for command in pi tiiny; do
         cat > "$BIN/$command" <<'STUB'
 #!/usr/bin/env bash
+case "$0" in
+    */tiiny)
+    case "${TIINY_STUB_MODE:-one}" in
+        fail) exit 42 ;;
+        malformed) printf '{"models":{}}\n'; exit 0 ;;
+        zero) printf '{"models":[]}\n'; exit 0 ;;
+        many)
+            printf '{"models":[{"id":"one","name":"One",'
+            printf '"state":"running"},{"id":"two",'
+            printf '"name":"Two","state":"loaded"}]}\n'
+            exit 0
+            ;;
+    esac
+    printf '{"models":[{"id":"%s","name":"Test Model",' \
+        "$TIINY_STUB_MODEL"
+    printf '"state":"running"}]}\n'
+    exit 0
+    ;;
+esac
 printf 'unexpected external invocation\n' >> "$CALLS"
 exit 97
 STUB
@@ -42,10 +63,29 @@ STUB
 
 run_cli() {
     STATUS=0
+    CLI_ARGS=("$@")
+    STUB_MODEL=test/model
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --model|-m)
+                STUB_MODEL="${2:-}"
+                shift
+                [ "$#" -gt 0 ] && shift
+                continue
+                ;;
+        esac
+        shift
+    done
     (
         cd "$REPO"
         export PATH="$BIN" CALLS="$CASE_DIR/calls"
-        "$RUNNER" "$@"
+        export TIINY_STUB_MODEL="$STUB_MODEL"
+        export TIINY_STUB_MODE="${TIINY_STUB_MODE:-one}"
+        if [ "${#CLI_ARGS[@]}" -gt 0 ]; then
+            "$RUNNER" "${CLI_ARGS[@]}"
+        else
+            "$RUNNER"
+        fi
     ) > "$CASE_DIR/stdout" 2> "$CASE_DIR/stderr" || STATUS=$?
     OUTPUT=$(cat "$CASE_DIR/stdout" "$CASE_DIR/stderr")
     [ ! -e "$CASE_DIR/calls" ] || fail "preflight invoked a device tool"
@@ -91,6 +131,35 @@ expect_config 10 80 'automatic (sole loaded model)'
 new_case
 run_cli 7
 expect_config 7 80 'automatic (sole loaded model)'
+
+for mode in zero malformed fail; do
+    new_case
+    TIINY_STUB_MODE="$mode" run_cli
+    expect_status 1
+    case "$mode" in
+        zero) expect_text 'no loaded Tiiny models' ;;
+        malformed) expect_text 'malformed model data' ;;
+        fail) expect_text 'cannot discover loaded Tiiny models' ;;
+    esac
+done
+
+new_case
+TIINY_STUB_MODE=many run_cli
+expect_status 1
+expect_text 'Loaded model IDs:'
+expect_text 'one'
+expect_text 'two'
+expect_text 'multiple loaded models'
+
+new_case
+TIINY_STUB_MODE=many run_cli -m one
+expect_status 0
+expect_text 'Selected Tiiny model: One (one)'
+
+new_case
+TIINY_STUB_MODE=many run_cli -m absent
+expect_status 1
+expect_text "model 'absent' is not currently loaded"
 
 for flag in --model -m; do
     for position in before between after; do

@@ -109,4 +109,54 @@ touch "$LOG_FILE" || preflight_error "cannot create or update $LOG_FILE"
 printf 'Preflight passed: MAX_ITERATIONS=%s MAX_TURNS_PER_SESSION=%s\n' \
     "$MAX_ITERATIONS" "$MAX_TURNS_PER_SESSION"
 printf 'Requested model: %s\n' "${MODEL:-automatic (sole loaded model)}"
-# Model discovery and Pi sessions are added by subsequent PRD stories.
+
+# Tiiny's read-only inventory command reports currently resident models. Keep
+# this separate from the installed/downloaded model catalog: only entries in
+# the running state are eligible for this runner.
+MODEL_LIST=$(tiiny ls --json 2>/dev/null) ||
+    preflight_error 'cannot discover loaded Tiiny models with tiiny ls --json'
+
+MODEL_COUNT=$(printf '%s' "$MODEL_LIST" | jq -r '
+    def models:
+      if type == "array" then .
+      elif (.models | type) == "array" then .models
+      else error("missing models array") end;
+    [models[] | select((.state // .status // "")
+      | ascii_downcase == "running" or . == "loaded")
+      | select((.id | type) == "string" and (.id | length) > 0)] | length
+' 2>/dev/null) || preflight_error 'Tiiny returned malformed model data'
+
+[ "$MODEL_COUNT" -gt 0 ] ||
+    preflight_error 'no loaded Tiiny models found; load a model first'
+
+SELECTED_MODEL=$(printf '%s' "$MODEL_LIST" | jq -r --arg requested "$MODEL" '
+    def models:
+      if type == "array" then .
+      elif (.models | type) == "array" then .models
+      else error("missing models array") end;
+    [models[] | select((.state // .status // "")
+      | ascii_downcase == "running" or . == "loaded")
+      | select((.id | type) == "string" and (.id | length) > 0)]
+    | if $requested != "" then map(select(.id == $requested))
+      elif length == 1 then .
+      else [] end
+    | if length == 1 then .[0] else empty end
+' 2>/dev/null) || true
+
+if [ -z "$SELECTED_MODEL" ]; then
+    if [ -n "$MODEL" ]; then
+        preflight_error "model '$MODEL' is not currently loaded"
+    fi
+    printf 'Loaded model IDs:\n' >&2
+    printf '%s' "$MODEL_LIST" | jq -r '
+        def models: if type == "array" then . else .models end;
+        models[] | select((.state // .status // "")
+          | ascii_downcase == "running" or . == "loaded") | "  " + .id
+    ' >&2 2>/dev/null || true
+    preflight_error 'multiple loaded models; select one with --model or -m'
+fi
+
+SELECTED_ID=$(printf '%s' "$SELECTED_MODEL" | jq -r '.id')
+SELECTED_NAME=$(printf '%s' "$SELECTED_MODEL" |
+    jq -r '.name // .id')
+printf 'Selected Tiiny model: %s (%s)\n' "$SELECTED_NAME" "$SELECTED_ID"

@@ -29,4 +29,20 @@ Branch: ralph/tiiny-runner
   - Check Git's exit status and its is-inside-work-tree result: a bare
     repository reports false with exit 0.
   - Normalize leading zeroes in numeric limits to avoid Bash octal parsing.
+
+## 2026-11-23 01:40 PST - US-002
+- Added read-only `tiiny ls --json` discovery and selected only loaded or
+  running model entries.
+- Added automatic sole-model selection, exact explicit selection, and clear
+  errors for zero, multiple, unloaded, malformed, and failed discovery.
+- Added model name and ID announcement before future Pi work begins.
+- Files changed: ralph_tiiny.sh, tests/ralph_tiiny_cli.sh, specs/prd.json,
+  progress.log.
+- **Learnings for future iterations:**
+  - Tiiny model inventory is queried with `tiiny ls --json`; fixtures use a
+    top-level `models` array with `id`, `name`, and `state`.
+  - Loaded model state is distinct from installed or downloaded inventory;
+    only `running` and `loaded` entries are eligible.
+  - Tiiny CLI discovery is read-only and uses its active device context, so
+    the runner must not add connect, scan, load, or unload operations.
 ---

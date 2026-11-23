@@ -59,8 +59,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "63 offline discovery cases pass; bash -n and ShellCheck pass."
     },
     {
       "id": "US-003",
