@@ -204,8 +204,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Tiiny setup and verification documented; 75 offline cases pass."
     }
   ]
 }

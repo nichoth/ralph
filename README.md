@@ -109,6 +109,98 @@ See [`./spec/README.md`](./specs/README.md)
 
 ---
 
+## Tiiny runner
+
+`ralph_tiiny.sh` runs the Ralph loop with a model already loaded on a Tiiny
+device. It does not connect to devices, download models, or change Pi or
+Tiiny configuration.
+
+### Prerequisites
+
+Install and put these commands on `PATH`:
+
+- Pi, with its extension API available to the installed Pi version
+- Tiiny CLI, configured for the prepared device
+- `jq` and Git
+
+Run the command from the root of a working Git repository. The repository
+must contain a readable `PROMPT.md` and `specs/prd.json`. `progress.log` is
+created in the current directory when it does not exist. The device must
+already be connected and have at least one model loaded.
+
+### Usage
+
+```sh
+./ralph_tiiny.sh
+./ralph_tiiny.sh 5 40
+./ralph_tiiny.sh --model ornith-ai/Ornith-1.5-35B-A3B-Turbo
+./ralph_tiiny.sh 5 40 -m ornith-ai/Ornith-1.5-35B-A3B-Turbo
+```
+
+The positional arguments are maximum iterations and maximum model turns per
+session. They default to `10` and `80`. `--model MODEL_ID` and
+`-m MODEL_ID` are equivalent and can appear anywhere among the arguments.
+Use `--help` for the complete usage text.
+
+Before starting Pi, the runner queries `tiiny ls --json` and selects from
+currently loaded models only. A single loaded model is selected automatically.
+With multiple loaded models, pass an exact ID with `--model` or `-m`. A zero
+model result, an unloaded requested ID, malformed output, discovery failure,
+or mismatched inference endpoint stops before any Pi session starts. The
+selected model name and ID are printed before work begins. Discovery and
+inference use the same active Tiiny device context; no local IP is hard-coded.
+
+Each session receives a temporary in-memory Pi model registration and uses
+the selected endpoint and existing Tiiny authentication. The temporary
+extension is removed on exit or interruption. Reasoning is enabled for
+reasoning models; Pi thinking-level settings do not change Tiiny's model
+budget. The per-session turn cap aborts the session when reached. Tool events
+do not consume model turns.
+
+The runner selects exactly one pending PRD story per iteration, includes the
+prompt, task context, and eight recent log lines, and starts a fresh Pi JSON
+session. Stall hints escalate after no progress. A new commit or fewer pending
+stories is progress; dirty files alone are not. Four stalls exit `2`, three
+failed sessions exit `4`, malformed PRD data exits `3`, Ctrl-C exits `130`,
+and completed work or iteration exhaustion exits `0`. At stall count two,
+`.wrangler/state/v3` is removed if present. A completion marker is trusted
+only after a successful terminal event and zero pending stories.
+
+### Offline verification
+
+The test suite uses stub commands and temporary Git repositories, so it does
+not connect to Tiiny or run real inference:
+
+```sh
+npm test
+bash -n ralph_tiiny.sh
+```
+
+The generated extension is checked by Pi's TypeScript extension loader when a
+real session starts. This repository has no standalone TypeScript project or
+`npm run lint` script; shell-only validation therefore records typecheck as
+N/A for the runner itself. The offline tests cover the extension contract and
+the session turn-cap boundaries without contacting hardware.
+
+### Manual live-device smoke test
+
+For a live check, prepare a connected Tiiny device with exactly one loaded
+model, verify `tiiny ls --json`, and ensure Pi and the Tiiny CLI use the same
+device context. From a disposable Git checkout containing `PROMPT.md` and a
+small pending `specs/prd.json`, run:
+
+```sh
+./ralph_tiiny.sh 1 2
+```
+
+Confirm that the selected model is announced, Pi starts with that model, the
+turn cap is enforced, and the temporary extension is gone afterward. Do not
+run this smoke test against production work without reviewing the generated
+commit. Live hardware testing is unavailable when the Tiiny device is
+disconnected; offline tests do not prove live-device compatibility.
+
+---
+
 ## The Ralph Script
 
 See [./ralph.sh](./ralph.sh).

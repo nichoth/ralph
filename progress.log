@@ -69,10 +69,6 @@ Branch: ralph/tiiny-runner
     never substitute a catalog or fixed model ID.
   - Keep the extension outside the repository and delete it with an exit
     trap so Pi configuration remains untouched.
----
-
-
-
 ## 2026-11-23 03:30 PST - US-005
 - Added live rendering for Pi system, retry, compaction, assistant text,
   tool, tool-result, and terminal events while retaining raw JSONL capture.
@@ -129,4 +125,20 @@ Branch: ralph/tiiny-runner
     intentionally insufficient to reset stalls.
   - The turn-cap abort is routed through the same failed-session counter as
     other non-successful terminal outcomes.
+---
+
+## 2026-11-23 05:00 PST - US-007
+- Documented Tiiny prerequisites, automatic and explicit model selection,
+  endpoint alignment, thinking and turn-cap behavior, progress rules, exit
+  codes, cleanup, and a manual live-device smoke test.
+- Documented the offline verification command and clarified that offline
+  tests do not prove live hardware compatibility.
+- Files changed: README.md, specs/prd.json, progress.log.
+- Validation: npm test passed with 75 offline Tiiny CLI cases; bash -n passed;
+  ShellCheck is unavailable in this environment. Typecheck: N/A for the
+  shell-only runner; the generated extension is checked by Pi's loader during
+  a real session. No live Tiiny device was available for smoke testing.
+- **Learnings for future iterations:**
+  - Keep live-device claims separate from offline stub-test claims.
+  - The repository has no npm lint script or standalone TypeScript project.
 ---
