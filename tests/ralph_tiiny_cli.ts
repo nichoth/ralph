@@ -10,7 +10,8 @@ import { delimiter, join, resolve } from 'node:path'
 
 // Offline integration tests: only the runner uses Bash. Node manages all
 // fixtures, assertions, and stubs; real Pi and Tiiny commands are unreachable.
-const runner = resolve(import.meta.dirname, '../ralph_tiiny.sh')
+const runner = process.env.RALPH_TEST_RUNNER ||
+    resolve(import.meta.dirname, '../ralph_tiiny.sh')
 const commands = [
     'bash', 'touch', 'mktemp', 'cat', 'tee', 'tail', 'jq', 'git',
 ] as const
@@ -21,6 +22,74 @@ const executables = Object.fromEntries(commands.map((command) => {
 })) as Record<typeof commands[number], string>
 
 const automatic = 'automatic (sole loaded model)'
+
+// Captured from Tiiny CLI v0.0.7: --json still renders this table.
+const loadedTable = [
+    '+------------------------+----------------------------------+' +
+        '------------------+---------+------+-------------------+' +
+        '-------------------+-------+',
+    '|Name                    |Model ID                          |' +
+        'Type              |NPU Usage|Source|Started            |' +
+        'Last Used          |Aliases|',
+    '+------------------------+----------------------------------+' +
+        '------------------+---------+------+-------------------+' +
+        '-------------------+-------+',
+    '|Ornith-1.5-35B-A3B-Turbo|ornith-ai/Ornith-1.5-35B-A3B-Turbo|' +
+        'Image-Text-to-Text|49%      |Store |2026-11-23 11:08:11|' +
+        '2026-11-23 11:08:26|default|',
+    '+------------------------+----------------------------------+' +
+        '------------------+---------+------+-------------------+' +
+        '-------------------+-------+',
+].join('\n') + '\n'
+
+for (const args of [[], ['-m', 'ornith-ai/Ornith-1.5-35B-A3B-Turbo']]) {
+    cliTest(`selects a loaded model from Tiiny's table: ${args}`,
+        (t, f) => {
+            f.stub('tiiny', `
+                process.stdout.write(${JSON.stringify(loadedTable)});
+            `)
+            const result = f.run(args)
+            result.status(0)
+            result.text('Selected Tiiny model: Ornith-1.5-35B-A3B-Turbo ' +
+                '(ornith-ai/Ornith-1.5-35B-A3B-Turbo)')
+        })
+}
+
+cliTest('multiple loaded table rows require a selection', (t, f) => {
+    const table = loadedTable.replace(/\n\+[^\n]+\n$/, '\n' +
+        '|Second Model|custom/second|Text Generation|10%|Store|' +
+        '2026-11-23 11:08:11|2026-11-23 11:08:26||\n' +
+        loadedTable.split('\n')[0] + '\n')
+    f.stub('tiiny', `process.stdout.write(${JSON.stringify(table)});`)
+    const result = f.run()
+    result.status(1)
+    result.text('ornith-ai/Ornith-1.5-35B-A3B-Turbo')
+    result.text('custom/second')
+    result.text('multiple loaded models')
+})
+
+cliTest('an empty loaded table reports no loaded models', (t, f) => {
+    const table = loadedTable.split('\n').filter((line) =>
+        !line.startsWith('|Ornith-')).join('\n')
+    f.stub('tiiny', `process.stdout.write(${JSON.stringify(table)});`)
+    const result = f.run()
+    result.status(1)
+    result.text('no loaded Tiiny models')
+})
+
+for (const table of [
+    loadedTable.replace('Model ID', 'Unknown '),
+    loadedTable.replace('|Ornith-', '|broken|Ornith-'),
+    loadedTable.replace('ornith-ai/Ornith-1.5-35B-A3B-Turbo', ' '),
+    loadedTable + 'unexpected output\n',
+]) {
+    cliTest('rejects malformed model tables', (t, f) => {
+        f.stub('tiiny', `process.stdout.write(${JSON.stringify(table)});`)
+        const result = f.run()
+        result.status(1)
+        result.text('malformed model data')
+    })
+}
 
 cliTest('help works without local prerequisites', (t, f) => {
     for (const command of ['pi', 'tiiny', 'jq', 'git']) {
@@ -252,25 +321,38 @@ cliTest('malformed PRD exits with status 3', (t, f) => {
 cliTest('renders Pi JSON events', (t, f) => {
     f.stories([{ id:'todo', title:'Todo' }])
     const events = [
-        { type:'system', subtype:'init', model:'tiiny' },
+        { type:'agent_start' },
         {
-            type:'system',
-            subtype:'api_retry',
+            type:'auto_retry_start',
             attempt:1,
-            max_retries:2,
-            error:'temporary'
+            maxAttempts:2,
+            errorMessage:'temporary'
         },
         {
-            type:'assistant',
+            type:'message_end',
             message:{
+                role:'assistant',
+                stopReason:'toolUse',
                 content:[
                     { type:'text', text:'hello' },
-                    { type:'tool_use', name:'git', input:{ x:1 } },
                 ]
             }
         },
-        { type:'user', message:{ content:[{ type:'tool_result' }] } },
-        { type:'result', subtype:'success' },
+        {
+            type:'tool_execution_start',
+            toolName:'bash',
+            toolCallId:'call-1',
+            args:{ command:'git status' }
+        },
+        {
+            type:'tool_execution_end',
+            toolName:'bash',
+            toolCallId:'call-1',
+            isError:false,
+            result:{ content:[{ type:'text', text:'working tree clean' }] }
+        },
+        { type:'message_end', message:assistantMessage() },
+        { type:'agent_end', messages:[assistantMessage()] },
     ]
     f.stub('pi', `
         for (const event of ${JSON.stringify(events)}) {
@@ -279,29 +361,128 @@ cliTest('renders Pi JSON events', (t, f) => {
     `)
     const result = f.run(['1'])
     result.status(0)
-    for (const text of ['session start (tiiny)', 'retry 1/2', 'hello',
-        'tool git:', 'tool result', 'session success']) result.text(text)
+    for (const text of ['session start', 'retry 1/2', 'hello',
+        'tool bash:', 'working tree clean', 'session end']) result.text(text)
+    result.absent('Pi failures')
+    result.absent('Retained Pi capture:')
 })
 
 cliTest('reports missing assistant terminal output', (t, f) => {
     f.stories([{ id:'todo', title:'Todo' }])
     f.stub('pi', `console.log(JSON.stringify({
-        type: 'result', subtype: 'success',
+        type: 'agent_end', messages: [],
     }));`)
     const result = f.run(['1'])
     result.status(0)
     result.text('missing assistant terminal output')
 })
 
-for (const subtype of ['error', 'aborted']) {
-    cliTest(`reports Pi terminal outcome: ${subtype}`, (t, f) => {
+for (const stopReason of ['error', 'aborted', 'length', 'toolUse']) {
+    cliTest(`reports Pi terminal outcome: ${stopReason}`, (t, f) => {
         f.stories([{ id:'todo', title:'Todo' }])
-        loopStub(f, { text:'failed', subtype })
+        loopStub(f, { text:'failed', stopReason })
         const result = f.run(['1'])
         result.status(0)
-        result.text(`Pi terminal outcome: ${subtype}`)
+        result.text(`Pi terminal outcome: ${stopReason}`)
+        result.text('Pi session failed validation (process status 0)')
+        result.absent('Pi session exited with status 1')
+        const captures = result.captures()
+        t.equal(captures.length, 1, 'one failed capture retained')
+        for (const capture of captures) {
+            t.ok(readFileSync(capture, 'utf8').includes(stopReason),
+                'retained capture contains the raw failure')
+        }
     })
 }
+
+cliTest('renders model errors even when Pi exits zero', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    const message = assistantMessage({
+        content:[], stopReason:'error', errorMessage:'inference unavailable',
+    })
+    piEvents(f, [
+        { type:'message_end', message },
+        { type:'agent_end', messages:[message] },
+    ])
+    const result = f.run(['3'])
+    result.status(4)
+    result.text('inference unavailable')
+    result.text('Failed 3 consecutive Pi sessions')
+    t.equal(result.captures().length, 3, 'all failed captures survive exit')
+})
+
+cliTest('errorMessage prevents a successful classification', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    const message = assistantMessage({ errorMessage:'provider failure' })
+    piEvents(f, [{ type:'agent_end', messages:[message] }])
+    const result = f.run(['1'])
+    result.text('Pi terminal outcome: error')
+    result.text('provider failure')
+    t.equal(result.captures().length, 1, 'failed capture retained')
+})
+
+for (const events of [
+    [],
+    [{ type:'message_end', message:assistantMessage() }],
+    [{ type:'agent_end', messages:[assistantMessage()] }, 'bad JSON'],
+]) {
+    cliTest('rejects incomplete or malformed Pi output', (t, f) => {
+        f.stories([{ id:'todo', title:'Todo' }])
+        piEvents(f, events)
+        const result = f.run(['1'])
+        result.text('Pi session failed validation (process status 0)')
+        t.equal(result.captures().length, 1, 'invalid capture retained')
+    })
+}
+
+cliTest('uses the final assistant after a recovered error', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    const failed = assistantMessage({
+        stopReason:'error', errorMessage:'temporary error',
+    })
+    const success = assistantMessage()
+    piEvents(f, [
+        { type:'message_end', message:failed },
+        { type:'agent_end', messages:[failed] },
+        { type:'message_end', message:success },
+        { type:'agent_end', messages:[failed, success] },
+    ])
+    const result = f.run(['1'])
+    result.absent('Pi failures')
+    t.equal(result.captures().length, 0, 'successful capture removed')
+})
+
+cliTest('trusts COMPLETE only in the final successful assistant', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    loopStub(f, { text:'<promise>COMPLETE</promise>' })
+    const result = f.run(['1'], { PI_MODE:'complete_two' })
+    result.status(0)
+    result.text('MISSION ACCOMPLISHED')
+    result.absent('Retained Pi capture:')
+})
+
+cliTest('ignores COMPLETE in earlier assistant and tool text', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    const marker = '<promise>COMPLETE</promise>'
+    piEvents(f, [
+        {
+            type:'message_end',
+            message:assistantMessage({
+                content:[{ type:'text', text:marker }], stopReason:'toolUse',
+            })
+        },
+        {
+            type:'agent_end',
+            messages:[
+                { role:'toolResult', content:[{ type:'text', text:marker }] },
+                assistantMessage(),
+            ]
+        },
+    ])
+    const result = f.run(['1'])
+    result.absent('ignoring COMPLETE')
+    result.absent('Pi failures')
+})
 
 cliTest('ignores COMPLETE while tasks remain', (t, f) => {
     f.stories([{ id:'todo', title:'Todo', passes:false }])
@@ -310,6 +491,44 @@ cliTest('ignores COMPLETE while tasks remain', (t, f) => {
     result.status(0)
     result.text('ignoring COMPLETE')
 })
+
+cliTest('Pi uses the Tiiny device address as its endpoint', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    loopStub(f)
+    f.run(['1'], { PI_MODE:'commit' }).status(0)
+    t.ok(f.calls().includes('endpoint=http://192.0.2.7/v1\n'),
+        'endpoint comes from the configured device address')
+})
+
+cliTest('TIINY_BASE_URL overrides the device address', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    loopStub(f)
+    const endpoint = 'http://198.51.100.3:9000/v1'
+    f.run(['1'], { PI_MODE:'commit', TIINY_BASE_URL:endpoint }).status(0)
+    t.ok(f.calls().includes(`endpoint=${endpoint}\n`),
+        'endpoint comes from TIINY_BASE_URL')
+})
+
+cliTest('an IPv6 device address is bracketed', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    loopStub(f)
+    writeFileSync(join(f.env.HOME!, '.local/tiiny/config.json'),
+        JSON.stringify({ deviceAddress:'fe80::1%en0' }))
+    f.run(['1'], { PI_MODE:'commit' }).status(0)
+    t.ok(f.calls().includes('endpoint=http://[fe80::1%25en0]/v1\n'),
+        'endpoint brackets and escapes the IPv6 address')
+})
+
+for (const config of ['missing', 'no address']) {
+    cliTest(`no Tiiny device address: ${config}`, (t, f) => {
+        const path = join(f.env.HOME!, '.local/tiiny/config.json')
+        if (config === 'missing') f.remove(path)
+        else writeFileSync(path, JSON.stringify({ discovery:{} }))
+        loopStub(f)
+        f.run(['1']).status(1)
+        t.ok(!existsSync(join(f.env.HOME!, 'calls')), 'Pi never runs')
+    })
+}
 
 cliTest('a new commit counts as progress', (t, f) => {
     f.stories([{ id:'todo', title:'Todo' }])
@@ -337,6 +556,8 @@ cliTest('three failed sessions stop with status 4', (t, f) => {
     const result = f.run(['3'], { PI_MODE:'fail' })
     result.status(4)
     result.text('Failed 3 consecutive Pi sessions')
+    result.text('Pi process exited with status 9')
+    t.equal(result.captures().length, 3, 'nonzero exits retain captures')
 })
 
 cliTest('a later successful run reaches its iteration limit', (t, f) => {
@@ -346,6 +567,26 @@ cliTest('a later successful run reaches its iteration limit', (t, f) => {
     const result = f.run(['1'])
     result.status(0)
     result.text('Reached MAX_ITERATIONS=1')
+})
+
+cliTest('interruption retains the current capture', (t, f) => {
+    f.stories([{ id:'todo', title:'Todo' }])
+    loopStub(f)
+    f.stub('tee', `
+        const fs = require('node:fs');
+        const output = fs.readFileSync(0, 'utf8');
+        fs.writeFileSync(process.argv[2], output);
+        process.stdout.write(output);
+        process.kill(process.ppid, 'SIGINT');
+    `)
+    const result = f.run(['1'])
+    result.status(130)
+    const captures = result.captures()
+    t.equal(captures.length, 1, 'interrupted capture retained')
+    for (const capture of captures) {
+        t.ok(readFileSync(capture, 'utf8').includes('message_end'),
+            'retained capture contains session output')
+    }
 })
 
 cliTest('reports sessions completing multiple stories', (t, f) => {
@@ -366,6 +607,8 @@ type Story = {
 type CliResult = {
     status(code:number):void;
     text(value:string):void;
+    absent(value:string):void;
+    captures():Array<string>;
     config(iterations:number, turns:number, model:string):void;
 }
 
@@ -395,6 +638,7 @@ function cliTest (
         const env:NodeJS.ProcessEnv = {
             ...process.env,
             PATH:bin,
+            HOME:root,
             TMPDIR:root,
             CALLS:calls,
             UNEXPECTED_CALLS:unexpected,
@@ -466,6 +710,19 @@ function cliTest (
                         t.ok(output.includes(value), `output: ${value}`)
                         if (!output.includes(value)) t.comment(output)
                     },
+                    absent (value) {
+                        t.ok(!output.includes(value), `no output: ${value}`)
+                        if (output.includes(value)) t.comment(output)
+                    },
+                    captures () {
+                        const paths = Array.from(output.matchAll(
+                            /Retained Pi capture: (.+)/g
+                        ), (match) => match[1])
+                        for (const path of paths) {
+                            t.ok(existsSync(path), 'capture exists after exit')
+                        }
+                        return paths
+                    },
                     config (iterations, turns, model) {
                         this.status(0)
                         this.text(`MAX_ITERATIONS=${iterations}`)
@@ -481,6 +738,9 @@ function cliTest (
         try {
             mkdirSync(join(repo, 'specs'), { recursive:true })
             mkdirSync(bin)
+            mkdirSync(join(root, '.local/tiiny'), { recursive:true })
+            writeFileSync(join(root, '.local/tiiny/config.json'),
+                JSON.stringify({ deviceAddress:'192.0.2.7' }))
             for (const command of commands) {
                 symlinkSync(executables[command], join(bin, command))
             }
@@ -494,7 +754,7 @@ function cliTest (
             `)
             fixture.stub('tiiny', `
                 if (JSON.stringify(process.argv.slice(2)) !==
-                    JSON.stringify(['ls', '--json'])) {
+                    JSON.stringify(['ls', '--loaded', '--json'])) {
                     require('node:fs').appendFileSync(
                         process.env.UNEXPECTED_CALLS, 'tiiny\\n');
                     process.exit(97);
@@ -522,20 +782,21 @@ function cliTest (
 
 function loopStub (
     fixture:Fixture,
-    { text = 'done', subtype = 'success' }:{
+    { text = 'done', stopReason = 'stop' }:{
         text?:string;
-        subtype?:string;
+        stopReason?:string;
     } = {}
 ):void {
     fixture.stub('pi', `
         const fs = require('node:fs');
         const { execFileSync } = require('node:child_process');
         fs.appendFileSync(process.env.CALLS,
+            'endpoint=' + process.env.RALPH_TIINY_ENDPOINT + '\\n' +
             process.argv.slice(2).join(' ') + '\\n' +
             fs.readFileSync(0, 'utf8'));
         const mode = process.env.PI_MODE;
         if (mode === 'fail') {
-            console.log(JSON.stringify({ type: 'result', subtype: 'error' }));
+            console.log(JSON.stringify({ type: 'agent_start' }));
             process.exit(9);
         }
         if (mode === 'commit') {
@@ -546,15 +807,46 @@ function loopStub (
         if (mode === 'complete_two') {
             const prd = JSON.parse(fs.readFileSync('specs/prd.json', 'utf8'));
             prd.userStories[0].passes = true;
-            prd.userStories[1].passes = true;
+            if (prd.userStories[1]) prd.userStories[1].passes = true;
             fs.writeFileSync('specs/prd.json', JSON.stringify(prd));
         }
-        console.log(JSON.stringify({ type: 'assistant', message: {
-            content: [{ type: 'text', text: ${JSON.stringify(text)} }],
-        } }));
+        const message = ${JSON.stringify(assistantMessage({
+            content:[{ type:'text', text }], stopReason,
+        }))};
+        console.log(JSON.stringify({ type: 'message_end', message }));
         console.log(JSON.stringify({
-            type: 'result', subtype: ${JSON.stringify(subtype)},
+            type: 'agent_end', messages: [message],
         }));
+    `)
+}
+
+function assistantMessage (overrides:Record<string, unknown> = {}) {
+    return {
+        role:'assistant',
+        content:[{ type:'text', text:'done' }],
+        api:'openai-completions',
+        provider:'tiiny',
+        model:'test/model',
+        usage:{
+            input:1,
+            output:1,
+            cacheRead:0,
+            cacheWrite:0,
+            totalTokens:2,
+            cost:{ input:0, output:0, cacheRead:0, cacheWrite:0, total:0 },
+        },
+        stopReason:'stop',
+        timestamp:1,
+        ...overrides,
+    }
+}
+
+function piEvents (fixture:Fixture, events:ReadonlyArray<unknown>):void {
+    fixture.stub('pi', `
+        for (const event of ${JSON.stringify(events)}) {
+            console.log(typeof event === 'string'
+                ? event : JSON.stringify(event));
+        }
     `)
 }
 

@@ -140,8 +140,13 @@ already be connected and have at least one model loaded.
 
 #### Environment
 
-The shell needs an env var `TIINY_API_KEY`.
+The shell needs an env var `TIINY_API_KEY`. Pi sends it as the bearer token
+for the device's inference API.
 
+Inference runs on the Tiiny device, not on localhost. By default the endpoint
+is `http://<deviceAddress>/v1`, where `deviceAddress` comes from the Tiiny CLI
+config at `~/.local/tiiny/config.json`. Set `TIINY_BASE_URL` to use a
+different endpoint, for example `http://192.168.1.214/v1`.
 
 ### Usage
 
@@ -178,7 +183,12 @@ stories is progress; dirty files alone are not. Four stalls exit `2`, three
 failed sessions exit `4`, malformed PRD data exits `3`, Ctrl-C exits `130`,
 and completed work or iteration exhaustion exits `0`. At stall count two,
 `.wrangler/state/v3` is removed if present. A completion marker is trusted
-only after a successful terminal event and zero pending stories.
+only after `agent_end` contains a final assistant with `stopReason: "stop"`,
+no model error, and zero pending stories. Assistant text, tool results, and
+model errors are displayed from Pi's JSON events. Failed or interrupted
+sessions keep their raw JSON capture in the temporary directory and print
+`Retained Pi capture: PATH`; successful sessions remove their captures.
+Validation failures report Pi's process status separately from the failure.
 
 ### Offline verification
 
@@ -204,9 +214,10 @@ without contacting hardware.
 ### Manual live-device smoke test
 
 For a live check, prepare a connected Tiiny device with exactly one loaded
-model, verify `tiiny ls --json`, and ensure Pi and the Tiiny CLI use the same
-device context. From a disposable Git checkout containing `PROMPT.md` and a
-small pending `specs/prd.json`, run:
+model, verify `tiiny ls --loaded`, and ensure Pi and the Tiiny CLI use the
+same device context. The runner accepts the loaded-model table emitted by
+Tiiny CLI v0.0.7 even when `--json` is requested. From a disposable Git
+checkout containing `PROMPT.md` and a small pending `specs/prd.json`, run:
 
 ```sh
 ./ralph_tiiny.sh 1 2
