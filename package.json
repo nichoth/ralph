@@ -1,5 +1,6 @@
 {
     "scripts": {
+        "test": "bash tests/ralph_tiiny_cli.sh",
         "toc": "markdown-toc --maxdepth 3 -i README.md"
     },
     "devDependencies": {

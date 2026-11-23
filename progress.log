@@ -1,55 +1,32 @@
-2026-03-05 TASK-001 Verify serverside rendering
+# Ralph Progress Log
 
-Changes:
-- Replaced the placeholder test with a Node SSR test that requests `/` from
-  the Hono app and asserts full HTML output plus serialized initial state.
-- Added `test:ssr` in `package.json` and pointed `npm test` to it so tests run
-  in Node.
-- Added `test/stubs/cloudflare-workers.ts` to alias `cloudflare:workers`
-  during Node bundling.
-- Updated `src/client/routes/contact.tsx` submit handler event type from
-  `SubmitEvent` to `Event` so project typecheck passes.
-- Marked `TASK-001` as `passes: true` in `specs/prd.json`.
+Feature: Tiiny runner
+Branch: ralph/tiiny-runner
 
-Patterns discovered:
-- Worker SSR tests in Node need an alias for `cloudflare:workers`.
-- CSS imports in server-shared JSX can be handled in Node test bundles with
-  `esbuild --loader:.css=text`.
-- `app.fetch(request, env)` works well for server-rendering verification with
-  lightweight Env stubs.
+## Codebase Patterns
 
-Verification:
-- `npm run lint` passed.
-- `npm test` passed (8/8 assertions).
-- `npx tsc --noEmit` passed.
+- The runners read specs/prd.json, PROMPT.md, and progress.log from cwd.
+- ralph_claude.sh is the behavior reference for the Tiiny runner.
+- Prior SSR PRD and log are archived under
+  archive/2026-11-23-tests-for-ssr-preact-apps/.
+- Run offline Tiiny CLI tests with npm test; fixtures use temporary Git
+  repositories and an isolated PATH, without real Pi or Tiiny calls.
 
-2026-03-05 TASK-002 Client side rendering
-
-Changes:
-- Added `test/client.ts` to run browser-environment client hydration tests
-  using `happy-dom` in Node.
-- Added `test:client` in `package.json` and updated `npm test` to run both
-  SSR (`test:ssr`) and client (`test:client`) suites.
-- Updated `src/client/index.tsx` to hydrate from shared `App`, read
-  `__INITIAL_STATE__`, and initialize client state from server-provided
-  serialized state.
-- Updated `src/client/state.ts` so `State()` can accept initial route/count
-  values from SSR hydration payload.
-- Updated `src/client/routes/home.tsx` to render and update counter text from
-  a tracked numeric value so client interactions re-render as expected.
-- Added `happy-dom` to `devDependencies`.
-- Marked `TASK-002` as `passes: true` in `specs/prd.json`.
-
-Patterns discovered:
-- Browser-style client tests can run in Node by bundling test code with
-  `esbuild` and leaving npm packages external (`--packages=external`) while
-  installing DOM globals with `happy-dom`.
-- Client hydration should read route/count from the SSR
-  `__INITIAL_STATE__` script to avoid boot-time route drift from URL-only
-  initialization.
-- For this Hono JSX setup, rendering explicit numeric values in route output
-  avoids unstable signal-object string output across SSR/client hydration.
-
-Verification:
-- `npm run lint` passed.
-- `npm test` passed (`test:ssr` and `test:client` both green).
+## 2026-11-23 00:53 PST - US-001
+- Implemented executable ralph_tiiny.sh with --model/-m, positional limits,
+  defaults of 10/80, loaded-model help, and usage errors (exit 2).
+- Added preflight checks for pi, tiiny, jq, Git, a working Git repository,
+  cwd-relative prompt/PRD files, and progress.log creation (errors exit 1).
+- Added tests/ralph_tiiny_cli.sh and npm test: 57 offline cases pass.
+  Tests failed against the empty runner before implementation.
+- Validation: bash -n, ShellCheck, line lengths, and git diff --check pass.
+  Typecheck: N/A (shell-only implementation). No npm lint script exists.
+- Code review found no remaining US-001 issues. ralph_claude.sh is unchanged.
+- Marked only US-001 complete in specs/prd.json; stopped before US-002.
+- **Learnings for future iterations:**
+  - The script currently ends after preflight; discovery and Pi execution
+    belong to subsequent stories and are not implemented yet.
+  - Check Git's exit status and its is-inside-work-tree result: a bare
+    repository reports false with exit 0.
+  - Normalize leading zeroes in numeric limits to avoid Bash octal parsing.
+---

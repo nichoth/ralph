@@ -1,40 +1,211 @@
 {
-  "project": "Tests for SSR preact apps",
-  "description": "Write tests that validate serverside rendering and client-side rendering. Need to write the tests and then run them in node. Add the tests as a script in package.json.",
-  "status": "in-progress",
-  "tasks": [
+  "project": "Ralph Tiiny Runner",
+  "branchName": "ralph/tiiny-runner",
+  "description": "Port the Claude task loop to Pi and loaded Tiiny models.",
+  "userStories": [
     {
-      "id": "TASK-001",
-      "title": "Verify serverside rendering",
-      "description": "Verify that the server renders HTML strings from initial state.",
-      "acceptance_criteria": [
-        "Server returns HTML string with full content rendered.",
-        "There is a test for this that runs in Node",
-        "Typecheck passes",
-        "tests for SSR pass"
+      "id": "US-001",
+      "title": "Add the Tiiny runner command line and preflight",
+      "description":
+        "As a user, I want familiar arguments so I can run Ralph on Tiiny.",
+      "acceptanceCriteria": [
+        "Create executable ./ralph_tiiny.sh; leave ralph_claude.sh intact.",
+        "Keep all new or modified lines shorter than 80 columns.",
+        "Accept --model MODEL_ID and its equivalent alias -m MODEL_ID.",
+        "Keep MAX_ITERATIONS and MAX_TURNS_PER_SESSION positional args.",
+        "Default iteration and session-turn limits to 10 and 80.",
+        "Accept model flags before or after the positional arguments.",
+        "Reject unknown flags, missing values, and extra positional args.",
+        "Reject nonpositive or noninteger limits with a usage error.",
+        "Provide --help describing defaults and loaded-model selection.",
+        "Require pi, tiiny, jq, Git, and a working Git repository.",
+        "Use cwd-relative PROMPT.md, specs/prd.json, and progress.log.",
+        "Fail clearly for missing prompt or PRD; create progress.log.",
+        "Add offline CLI tests using stub commands and temporary repos.",
+        "For shell-only changes, record typecheck as N/A; run bash -n.",
+        "Tests pass",
+        "Typecheck passes"
       ],
-      "effort_label": "medium",
-      "effort": 0,
       "priority": 1,
-      "dependencies": [],
-      "passes": true
+      "passes": true,
+      "notes": "57 offline CLI cases pass; bash -n and ShellCheck pass."
     },
     {
-        "id": "TASK-002",
-        "title": "Client side rendering",
-        "description": "Client side re-renders the app, starting with server-provided state",
-        "acceptance_criteria": [
-            "Tests that run in a browser environment",
-            "Tests check that the client does not re-render everything at the beginning",
-            "Tests check that the app is re-rendered client-side when state/signals are updated",
-            "types are valid",
-            "tests pass"
-        ],
-        "effort_label": "medium",
-        "effort": 0,
-        "priority": 1,
-        "dependencies": ["TASK-001"],
-        "passes": true
+      "id": "US-002",
+      "title": "Choose and announce an already loaded Tiiny model",
+      "description":
+        "As a user, I want loaded-model discovery to avoid wrong-model runs.",
+      "acceptanceCriteria": [
+        "Query Tiiny's loaded-model list before starting any Pi session.",
+        "Use the supported Tiiny CLI/API and verify its response schema.",
+        "Do not infer loaded state from installed or downloaded models.",
+        "Without a model flag, select the sole loaded model automatically.",
+        "With multiple models, exit nonzero before running Pi.",
+        "That error lists loaded IDs and requests --model or -m MODEL_ID.",
+        "An explicit model must exactly match a currently loaded model ID.",
+        "An explicit ID may select one model from multiple loaded models.",
+        "Zero loaded models is an actionable error, even with a model flag.",
+        "Discovery failure or malformed output is an error, not zero models.",
+        "Print the selected model's name and ID before work starts.",
+        "Do not default to Ornith or any other fixed model ID.",
+        "ornith-ai/Ornith-1.5-35B-A3B-Turbo works when loaded and selected.",
+        "Verify discovery and inference target the same Tiiny device.",
+        "Fail clearly if endpoint alignment cannot be established.",
+        "Do not connect, scan, download, load, or unload device models.",
+        "Test zero, one, many, explicit, unloaded, and discovery failures.",
+        "Keep fixtures faithful to verified Tiiny response schemas.",
+        "For shell-only changes, record typecheck as N/A; run bash -n.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Add temporary Pi model registration and a hard turn cap",
+      "description":
+        "As a user, I want Pi to use my loaded model within session limits.",
+      "acceptanceCriteria": [
+        "Generate a temporary Pi extension and load it for each session.",
+        "Register the selected model in memory before model resolution.",
+        "Reuse configured metadata for known Pi models when applicable.",
+        "Support loaded IDs absent from Pi's persistent model registry.",
+        "Discover missing metadata; document any necessary safe defaults.",
+        "Never copy unrelated model metadata via Pi's custom-ID fallback.",
+        "Use the selected Tiiny endpoint and existing auth configuration.",
+        "Do not edit persistent Pi config, Tiiny config, or host mappings.",
+        "Never print credentials or put them in diagnostics or raw logs.",
+        "Enforce MAX_TURNS_PER_SESSION through Pi events and ctx.abort().",
+        "Count model turns consistently; tool events do not add turns.",
+        "Reset the turn counter for every fresh Pi session.",
+        "Record when the cap ends a session for later failure handling.",
+        "Enable thinking for reasoning models throughout all sessions.",
+        "Do not claim medium/high/max changes Tiiny's thinking budget.",
+        "Clean up generated extension files on exit and interruption.",
+        "Test model registration, turn boundaries, reset, and cleanup.",
+        "Typecheck the generated extension against the installed Pi API.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Port task selection and per-session context to Pi",
+      "description":
+        "As a user, I want each Pi session to work on exactly one PRD story.",
+      "acceptanceCriteria": [
+        "Use ralph_claude.sh as the reference for task-loop semantics.",
+        "Validate the PRD and its userStories array before each iteration.",
+        "Malformed or missing PRD data exits 3 rather than reporting done.",
+        "Pending stories have passes false or null, including absent flags.",
+        "Select lowest numeric priority; missing priority sorts as 9999.",
+        "Exit 0 without a Pi session when no stories remain pending.",
+        "Include PROMPT.md, chosen story, remaining stories, and log tail.",
+        "Include exactly the last eight progress.log lines as recent context.",
+        "Require one story, progress/PRD updates, a commit, and then stop.",
+        "Keep the Claude runner's stall-based reasoning_hint instructions.",
+        "Start a fresh Pi process/session for every loop iteration.",
+        "Run Pi noninteractively in JSON mode on the chosen Tiiny model.",
+        "Pass the built context as prompt input; never resume old sessions.",
+        "Capture raw JSONL before rendering it, as the Claude runner does.",
+        "Test priority, missing flags, invalid PRDs, context, and sessions.",
+        "For shell-only changes, record typecheck as N/A; run bash -n.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Render Pi events and classify session outcomes",
+      "description":
+        "As a user, I want live output and reliable Pi failure reporting.",
+      "acceptanceCriteria": [
+        "Render readable session, assistant text, tool, and retry events.",
+        "Render compaction activity when the installed Pi emits it.",
+        "Show progress as events arrive; retain unmodified raw JSONL.",
+        "Capture Pi's exit status independently of tee and the renderer.",
+        "A renderer failure cannot erase the raw capture or Pi exit code.",
+        "Classify nonzero Pi exits as failed sessions.",
+        "Also detect final assistant error/aborted outcomes with exit 0.",
+        "A turn-cap abort is a failed session, not successful completion.",
+        "Use authoritative final events; recovered retries are not failures.",
+        "Treat missing or malformed terminal output as failure.",
+        "Recognize <promise>COMPLETE</promise> only in assistant text.",
+        "Require zero pending PRD stories before trusting COMPLETE.",
+        "Test success, recovered retries, errors, aborts, and bad output.",
+        "Test false COMPLETE signals while unfinished stories remain.",
+        "For shell-only changes, record typecheck as N/A; run bash -n.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Preserve progress tracking, retry limits, and exit behavior",
+      "description":
+        "As a user, I want the Tiiny loop to stop and recover like Claude.",
+      "acceptanceCriteria": [
+        "Track HEAD and pending-story count before and after each session.",
+        "A changed HEAD or fewer pending stories counts as progress.",
+        "Dirty files alone do not count; a log-only commit still counts.",
+        "Keep reference behavior for Git/PRD changes in failed sessions.",
+        "Reset stall count after progress; otherwise increment it.",
+        "Escalate prompt hints with stalls and reset them after progress.",
+        "At stall count 2, remove .wrangler/state/v3 if it exists.",
+        "Four consecutive no-progress sessions stop with exit 2.",
+        "Three consecutive failed sessions stop with exit 4.",
+        "A successful Pi session resets the consecutive-failure counter.",
+        "Warn when a session completes more than one pending story.",
+        "Preserve exit 0 on full completion and iteration exhaustion.",
+        "Ctrl-C exits 130; terminate active children and clean temp files.",
+        "Clean context, raw capture, and extension files on all exit paths.",
+        "Use offline stub sessions and temporary Git repos for loop tests.",
+        "Cover progress, stalls, failure resets, caps, exits, and cleanup.",
+        "For shell-only changes, record typecheck as N/A; run bash -n.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Document setup and verify the complete Tiiny runner",
+      "description":
+        "As a user, I want setup and examples so I can run the new script.",
+      "acceptanceCriteria": [
+        "Document Pi, Tiiny, jq, Git, and prepared-device prerequisites.",
+        "Show automatic single-model selection and both model flag forms.",
+        "Explain zero/multiple/unloaded-model errors and numeric defaults.",
+        "Explain endpoint alignment without hard-coding local IP addresses.",
+        "Explain thinking support, prompt escalation, and turn-cap behavior.",
+        "Document unchanged progress rules, exit codes, and Wrangler cleanup.",
+        "Provide a reproducible offline test command without real inference.",
+        "Run all runner tests, bash -n, and extension typechecking.",
+        "Test a full stubbed run from pending stories through completion.",
+        "Verify no config or device lifecycle changes occur during tests.",
+        "Document a manual live-device smoke test and its prerequisites.",
+        "Record live testing as unavailable if the device is disconnected.",
+        "Do not claim offline tests prove live hardware compatibility.",
+        "Keep documentation lines shorter than 80 columns.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
