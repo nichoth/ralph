@@ -29,7 +29,16 @@ See also
     + [1. Define requirements](#1-define-requirements)
     + [2. Create a `PROMPT.md` file](#2-create-a-promptmd-file)
     + [3. Start Ralph in a loop of 5 iterations](#3-start-ralph-in-a-loop-of-5-iterations)
+  * [PRD](#prd)
+  * [The Specs](#the-specs)
+    + [See Also](#see-also)
   * [PIN](#pin)
+    + [See Also](#see-also-1)
+  * [Tiiny](#tiiny)
+    + [Prerequisites](#prerequisites)
+    + [Usage](#usage)
+    + [Offline verification](#offline-verification)
+    + [Manual live-device smoke test](#manual-live-device-smoke-test)
   * [The Ralph Script](#the-ralph-script)
     + [Make executable](#make-executable)
     + [do one thing per loop](#do-one-thing-per-loop)
@@ -41,7 +50,8 @@ See also
   * [Memory](#memory)
     + [PRD (Product Requirements Document [`prd.json`])](#prd-product-requirements-document-prdjson)
     + [Loop](#loop)
-  * [See Also](#see-also)
+  * [See Also](#see-also-2)
+    + [snarktank/ralph](#snarktankralph)
 
 <!-- tocstop -->
 
@@ -108,7 +118,7 @@ See [`./spec/README.md`](./specs/README.md)
 
 ---
 
-## Tiiny runner
+## Tiiny
 
 `ralph_tiiny.sh` runs the Ralph loop with a model already loaded on a Tiiny
 device. It does not connect to devices, download models, or change Pi or
@@ -127,6 +137,11 @@ must contain a readable `PROMPT.md` and `specs/prd.json`. `progress.log` is
 created in the current directory when it does not exist. The device must
 already be connected and have at least one model loaded.
 
+#### Environment
+
+The shell needs an env var `TIINY_API_KEY`.
+
+
 ### Usage
 
 ```sh
@@ -137,17 +152,16 @@ already be connected and have at least one model loaded.
 ```
 
 The positional arguments are maximum iterations and maximum model turns per
-session. They default to `10` and `80`. `--model MODEL_ID` and
-`-m MODEL_ID` are equivalent and can appear anywhere among the arguments.
+session. They default to `10` and `80`.
+
+`--model MODEL_ID` and `-m MODEL_ID` are equivalent and can appear anywhere
+amongst the arguments. The model must be "loaded" on the device first.
 Use `--help` for the complete usage text.
 
-Before starting Pi, the runner queries `tiiny ls --json` and selects from
-currently loaded models only. A single loaded model is selected automatically.
-With multiple loaded models, pass an exact ID with `--model` or `-m`. A zero
-model result, an unloaded requested ID, malformed output, discovery failure,
-or mismatched inference endpoint stops before any Pi session starts. The
-selected model name and ID are printed before work begins. Discovery and
-inference use the same active Tiiny device context; no local IP is hard-coded.
+If `--model` is omitted and there is 1 model currently loaded, then the loop
+will use the 1 loaded model.
+
+If multiple models are loaded, pass an exact ID with `--model` or `-m`.
 
 Each session receives a temporary in-memory Pi model registration and uses
 the selected endpoint and existing Tiiny authentication. The temporary
