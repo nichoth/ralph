@@ -70,4 +70,23 @@ Branch: ralph/tiiny-runner
   - Keep the extension outside the repository and delete it with an exit
     trap so Pi configuration remains untouched.
 ---
+
+## 2026-11-23 02:45 PST - US-004
+- Added PRD validation and one-story task selection to ralph_tiiny.sh.
+- Added priority sorting with 9999 fallback and support for absent passes.
+- Added per-session context with PROMPT.md, the selected story, remaining
+  stories, exactly the last eight progress.log lines, and stall hints.
+- Added fresh noninteractive Pi JSON sessions with raw JSONL capture per
+  iteration and exit 3 for malformed PRD data.
+- Files changed: ralph_tiiny.sh, tests/ralph_tiiny_cli.sh, specs/prd.json,
+  progress.log.
+- Validation: targeted offline CLI tests, bash -n, and git diff --check pass.
+  Typecheck: N/A (shell-only implementation). npm run lint is unavailable
+  because package.json defines no lint script.
+- **Learnings for future iterations:**
+  - Keep PRD validity separate from pending-task counting so malformed data
+    cannot be mistaken for completion.
+  - Pi receives each session prompt through stdin and must be invoked fresh;
+    the next story will own event rendering and outcome classification.
+---
 ---

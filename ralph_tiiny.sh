@@ -42,6 +42,11 @@ preflight_error() {
     exit 1
 }
 
+prd_error() {
+    printf 'error: %s\n' "$1" >&2
+    exit 3
+}
+
 # Validate limits as decimal strings, avoiding octal and overflow in parsing.
 POSITIONAL_COUNT=0
 while [ "$#" -gt 0 ]; do
@@ -242,3 +247,91 @@ run_pi_session() {
     pi --no-session --mode json --extension "$PI_EXTENSION" \
         --model "tiiny/$SELECTED_ID" --thinking high -p
 }
+
+prd_ok() {
+    jq -e 'has("userStories") and (.userStories | type == "array")' \
+        "$PRD_FILE" >/dev/null 2>&1
+}
+
+count_pending() {
+    jq -r '[.userStories[] | select(.passes == false or
+        .passes == null or (.passes | not))] | length' "$PRD_FILE" \
+        2>/dev/null
+}
+
+pending_list() {
+    jq -r '.userStories[] | select(.passes == false or
+        .passes == null or (.passes | not)) |
+        "[\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null
+}
+
+current_task() {
+    jq -r '[.userStories[] | select(.passes == false or
+        .passes == null or (.passes | not))]
+        | sort_by(.priority // 9999) | (.[0] // empty)
+        | "[\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null
+}
+
+reasoning_hint() {
+    case "$1" in
+        0) : ;;
+        1) printf '%s\n' 'REASONING: Think step by step before acting.' ;;
+        2) printf '%s\n' 'REASONING: Re-read progress.log and question'
+            printf '%s\n' 'your earlier assumptions before acting.' ;;
+        *) printf '%s\n' 'REASONING: Think very hard and try a genuinely'
+            printf '%s\n' 'different strategy if earlier attempts stalled.' ;;
+    esac
+}
+
+TMP_CONTEXT=""
+TMP_CAPTURE=""
+cleanup_loop_files() {
+    /bin/rm -f "${TMP_CONTEXT:-}" "${TMP_CAPTURE:-}" 2>/dev/null || true
+    cleanup_pi_extension
+}
+trap cleanup_loop_files EXIT
+trap 'exit 130' INT
+
+ITERATION=0
+while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
+    ITERATION=$((ITERATION + 1))
+    if ! prd_ok; then
+        prd_error "$PRD_FILE is missing/malformed or has no "\
+            "'userStories' array"
+    fi
+
+    TASK=$(current_task)
+    if [ -z "$TASK" ]; then
+        printf 'All tasks in %s pass. Nothing left to do.\n' "$PRD_FILE"
+        exit 0
+    fi
+
+    TMP_CONTEXT=$(mktemp) || preflight_error 'cannot create session context'
+    {
+        cat "$PROMPT_FILE"
+        printf '\n# THIS SESSION\n'
+        printf 'Work on EXACTLY ONE task: %s\n' "$TASK"
+        printf '%s\n' 'Complete it, update progress.log, set passes:true,'
+        printf '%s\n' 'commit it, then stop. Do not start another task.'
+        printf '\nRemaining tasks (context only):\n'
+        pending_list
+        printf '\nLAST_LOG_ENTRIES:\n'
+        tail -n 8 "$LOG_FILE" 2>/dev/null
+        HINT=$(reasoning_hint "${STALLED_COUNT:-0}")
+        [ -z "$HINT" ] || printf '\n%s\n' "$HINT"
+    } > "$TMP_CONTEXT"
+
+    TMP_CAPTURE=$(mktemp) || preflight_error 'cannot create raw capture'
+    run_pi_session < "$TMP_CONTEXT" > "$TMP_CAPTURE"
+    PI_STATUS=$?
+    cat "$TMP_CAPTURE"
+    /bin/rm -f "$TMP_CONTEXT" "$TMP_CAPTURE"
+    TMP_CONTEXT=""
+    TMP_CAPTURE=""
+    [ "$PI_STATUS" -eq 0 ] ||
+        printf 'Pi session exited with status %s.\n' "$PI_STATUS" >&2
+done
+
+printf 'Reached MAX_ITERATIONS=%s with tasks still pending (%s left).\n' \
+    "$MAX_ITERATIONS" "$(count_pending)"
+exit 0

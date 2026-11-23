@@ -119,8 +119,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "US-004 offline task-selection and context tests pass."
     },
     {
       "id": "US-005",

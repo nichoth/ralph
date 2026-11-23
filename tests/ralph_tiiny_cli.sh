@@ -300,4 +300,39 @@ run_cli
 expect_status 1
 expect_text 'cannot create or update progress.log'
 
+# The task loop chooses the lowest priority, accepts absent passes flags, and
+# supplies the exact context contract to a fresh Pi process.
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[
+  {"id":"high","title":"High","priority":1},
+  {"id":"low","title":"Low","priority":9,"passes":false},
+  {"id":"done","title":"Done","priority":0,"passes":true}
+]}
+printf 'line-%s\n' 1 2 3 4 5 6 7 8 9 > "$REPO/progress.log"
+cat > "$BIN/pi" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CALLS"
+printf '%s\n' "$(cat)" >> "$CALLS"
+printf '{"type":"result","subtype":"success"}\n'
+STUB
+chmod +x "$BIN/pi"
+run_cli 1 4
+expect_status 0
+expect_text 'Reached MAX_ITERATIONS=1'
+grep -q 'Work on EXACTLY ONE task: \[high\] High' "$CASE_DIR/calls" ||
+    fail 'Pi context did not select the highest-priority pending story'
+grep -q 'line-2' "$CASE_DIR/calls" ||
+    fail 'Pi context did not include the last eight log lines'
+grep -q 'line-1' "$CASE_DIR/calls" &&
+    fail 'Pi context included more than the last eight log lines'
+grep -q 'Remaining tasks' "$CASE_DIR/calls" ||
+    fail 'Pi context omitted remaining tasks'
+
+new_case
+printf '{"userStories": {}}\n' > "$REPO/specs/prd.json"
+run_cli
+expect_status 3
+expect_text 'missing/malformed'
+
 printf 'PASS: %s offline Tiiny CLI cases\n' "$COUNT"
