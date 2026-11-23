@@ -147,8 +147,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "70 offline event and outcome cases pass; bash -n passes."
     },
     {
       "id": "US-006",

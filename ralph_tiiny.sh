@@ -248,6 +248,71 @@ run_pi_session() {
         --model "tiiny/$SELECTED_ID" --thinking high -p
 }
 
+render_events() {
+    while IFS= read -r event; do
+        printf '%s\n' "$event" | jq -r '
+          if .type == "system" then
+            ( .subtype as $s
+              | if $s == "init" then
+                  "session start (" + (.model // "?") + ")"
+                elif $s == "api_retry" then
+                  "retry " + ((.attempt // 0)|tostring) + "/" +
+                  ((.max_retries // 0)|tostring) + " — " +
+                  (.error // "?")
+                elif $s == "compact_boundary" then "context compacted"
+                else "system: " + ($s // "?") end )
+          elif .type == "assistant" then
+            (.message.content[]? |
+              if .type == "text" then .text
+              elif .type == "tool_use" then
+                "tool " + (.name // "?") + ": " +
+                ((.input // {}) | tostring | .[0:140])
+              else empty end)
+          elif .type == "user" then
+            (.message.content[]? |
+              if .type == "tool_result" then "tool result" else empty end)
+          elif .type == "result" then
+            "session " + (.subtype // "unknown")
+          else empty end
+        ' 2>/dev/null || true
+    done
+}
+
+classify_capture() {
+    local pending="$1" terminal
+    terminal=$(jq -rs '
+      [ .[] | select(.type == "result") ] | last // empty |
+      (.subtype // empty)
+    ' "$TMP_CAPTURE" 2>/dev/null)
+    if [ -z "$terminal" ]; then
+        printf 'Pi terminal outcome: missing terminal output\n' >&2
+        return 1
+    fi
+    if [ "$terminal" != success ]; then
+        printf 'Pi terminal outcome: %s\n' "$terminal" >&2
+        return 1
+    fi
+    if ! jq -se '
+      any(.[]; .type == "assistant" and
+        any(.message.content[]?; .type == "text"))
+    ' "$TMP_CAPTURE" >/dev/null 2>&1; then
+        printf 'Pi terminal outcome: missing assistant terminal output\n' >&2
+        return 1
+    fi
+    if jq -se 'any(.[]; .type == "assistant" and
+        any(.message.content[]?; .type == "text" and
+        (.text | contains("<promise>COMPLETE</promise>"))))' \
+        "$TMP_CAPTURE" >/dev/null 2>&1; then
+        if [ "$pending" -eq 0 ]; then
+            printf '%s\n' 'MISSION ACCOMPLISHED — COMPLETE reported and 0 '
+                'tasks pending.'
+            return 2
+        fi
+        printf 'ignoring COMPLETE: %s task(s) still pending\n' "$pending" >&2
+    fi
+    return 0
+}
+
 prd_ok() {
     jq -e 'has("userStories") and (.userStories | type == "array")' \
         "$PRD_FILE" >/dev/null 2>&1
@@ -322,9 +387,23 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     } > "$TMP_CONTEXT"
 
     TMP_CAPTURE=$(mktemp) || preflight_error 'cannot create raw capture'
-    run_pi_session < "$TMP_CONTEXT" > "$TMP_CAPTURE"
-    PI_STATUS=$?
-    cat "$TMP_CAPTURE"
+    set +o pipefail
+    run_pi_session < "$TMP_CONTEXT" | tee "$TMP_CAPTURE" | render_events
+    PIPE_STATUS=("${PIPESTATUS[@]}")
+    set -o pipefail
+    PI_STATUS="${PIPE_STATUS[0]:-1}"
+    if [ "${PIPE_STATUS[1]:-1}" -ne 0 ]; then
+        PI_STATUS="${PIPE_STATUS[1]}"
+    fi
+    PENDING_AFTER=$(count_pending)
+    if [ "$PI_STATUS" -eq 0 ]; then
+        classify_capture "$PENDING_AFTER"
+        OUTCOME=$?
+        if [ "$OUTCOME" -eq 2 ]; then
+            exit 0
+        fi
+        [ "$OUTCOME" -eq 0 ] || PI_STATUS=1
+    fi
     /bin/rm -f "$TMP_CONTEXT" "$TMP_CAPTURE"
     TMP_CONTEXT=""
     TMP_CAPTURE=""

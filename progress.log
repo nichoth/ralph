@@ -71,6 +71,24 @@ Branch: ralph/tiiny-runner
     trap so Pi configuration remains untouched.
 ---
 
+## 2026-11-23 03:30 PST - US-005
+- Added live rendering for Pi system, retry, compaction, assistant text,
+  tool, tool-result, and terminal events while retaining raw JSONL capture.
+- Added independent Pi exit-status handling and authoritative terminal
+  classification for success, errors, aborts, missing output, and false
+  COMPLETE signals.
+- Files changed: ralph_tiiny.sh, tests/ralph_tiiny_cli.sh, specs/prd.json,
+  progress.log.
+- Validation: 70 offline CLI cases pass, bash -n passes, and all changed
+  lines are shorter than 80 columns. npm run lint is unavailable because
+  package.json defines no lint script. Typecheck: N/A (shell-only).
+- **Learnings for future iterations:**
+  - Keep `tee` between Pi and the renderer so a renderer issue cannot remove
+    the raw stream or obscure Pi's own exit code.
+  - Trust completion only after a successful terminal result and a zero
+    pending-story count; assistant text alone is not authoritative.
+---
+
 ## 2026-11-23 02:45 PST - US-004
 - Added PRD validation and one-story task selection to ralph_tiiny.sh.
 - Added priority sorting with 9999 fallback and support for absent passes.

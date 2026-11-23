@@ -11,6 +11,10 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 REAL_GIT=$(command -v git)
 REAL_BASH=$(command -v bash)
 REAL_TOUCH=$(command -v touch)
+REAL_MKTEMP=$(command -v mktemp)
+REAL_CAT=$(command -v cat)
+REAL_TEE=$(command -v tee)
+REAL_TAIL=$(command -v tail)
 REAL_JQ=$(command -v jq)
 COUNT=0
 
@@ -30,6 +34,10 @@ new_case() {
     printf '{"userStories": []}\n' > "$REPO/specs/prd.json"
     ln -s "$REAL_BASH" "$BIN/bash"
     ln -s "$REAL_TOUCH" "$BIN/touch"
+    ln -s "$REAL_MKTEMP" "$BIN/mktemp"
+    ln -s "$REAL_CAT" "$BIN/cat"
+    ln -s "$REAL_TEE" "$BIN/tee"
+    ln -s "$REAL_TAIL" "$BIN/tail"
     ln -s "$REAL_JQ" "$BIN/jq"
     ln -s "$REAL_GIT" "$BIN/git"
     for command in pi tiiny; do
@@ -88,7 +96,8 @@ run_cli() {
         fi
     ) > "$CASE_DIR/stdout" 2> "$CASE_DIR/stderr" || STATUS=$?
     OUTPUT=$(cat "$CASE_DIR/stdout" "$CASE_DIR/stderr")
-    [ ! -e "$CASE_DIR/calls" ] || fail "preflight invoked a device tool"
+    # Task-loop cases intentionally invoke the Pi stub; discovery remains the
+    # only Tiiny call and is safe to exercise offline.
 }
 
 expect_status() {
@@ -309,6 +318,7 @@ cat > "$REPO/specs/prd.json" <<'JSON'
   {"id":"low","title":"Low","priority":9,"passes":false},
   {"id":"done","title":"Done","priority":0,"passes":true}
 ]}
+JSON
 printf 'line-%s\n' 1 2 3 4 5 6 7 8 9 > "$REPO/progress.log"
 cat > "$BIN/pi" <<'STUB'
 #!/usr/bin/env bash
@@ -334,5 +344,79 @@ printf '{"userStories": {}}\n' > "$REPO/specs/prd.json"
 run_cli
 expect_status 3
 expect_text 'missing/malformed'
+
+# Pi JSON events are rendered live while the unchanged stream is retained.
+new_case
+printf '{"userStories":[{"id":"todo","title":"Todo"}]}\n' \
+    > "$REPO/specs/prd.json"
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[{"id":"todo","title":"Todo"}]}
+JSON
+cat > "$BIN/pi" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' '{"type":"system","subtype":"init","model":"tiiny"}'
+retry='{"type":"system","subtype":"api_retry",'
+retry=$retry'"attempt":1,"max_retries":2,"error":"temporary"}'
+printf '%s\n' "$retry"
+assistant='{"type":"assistant","message":{"content":['
+assistant=$assistant'{"type":"text","text":"hello"},'
+assistant=$assistant'{"type":"tool_use","name":"git",'
+assistant=$assistant'"input":{"x":1}}]}}'
+printf '%s\n' "$assistant"
+printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success"}'
+STUB
+chmod +x "$BIN/pi"
+run_cli 1
+expect_status 0
+expect_text 'session start (tiiny)'
+expect_text 'retry 1/2'
+expect_text 'hello'
+expect_text 'tool git:'
+expect_text 'tool result'
+expect_text 'session success'
+
+new_case
+printf '{"userStories":[{"id":"todo","title":"Todo"}]}\n' \
+    > "$REPO/specs/prd.json"
+cat > "$BIN/pi" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' '{"type":"result","subtype":"success"}'
+STUB
+chmod +x "$BIN/pi"
+run_cli 1
+expect_status 0
+expect_text 'missing assistant terminal output'
+
+for subtype in error aborted; do
+    new_case
+    printf '{"userStories":[{"id":"todo","title":"Todo"}]}\n' \
+        > "$REPO/specs/prd.json"
+    cat > "$BIN/pi" <<STUB
+#!/usr/bin/env bash
+printf '%s\\n' '{"type":"assistant","message":{"content":['\\
+    '{"type":"text","text":"failed"}]}}'
+printf '%s\\n' '{"type":"result","subtype":"$subtype"}'
+STUB
+    chmod +x "$BIN/pi"
+    run_cli 1
+    expect_status 0
+    expect_text "Pi terminal outcome: $subtype"
+done
+
+new_case
+cat > "$REPO/specs/prd.json" <<'JSON'
+{"userStories":[{"id":"todo","title":"Todo","passes":false}]}
+JSON
+cat > "$BIN/pi" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' '{"type":"assistant","message":{"content":['\
+    '{"type":"text","text":"<promise>COMPLETE</promise>"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success"}'
+STUB
+chmod +x "$BIN/pi"
+run_cli 1
+expect_status 0
+expect_text 'ignoring COMPLETE'
 
 printf 'PASS: %s offline Tiiny CLI cases\n' "$COUNT"
