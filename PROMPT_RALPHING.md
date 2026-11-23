@@ -1,3 +1,7 @@
+<!--
+   This is the prompt I'm using to work on the ralph repo.
+-->
+
 # MISSION
 
 Create a new ralph script for `tiiny` hardware device, in `./ralph_tiiny.sh`.

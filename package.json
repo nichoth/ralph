@@ -1,9 +1,21 @@
 {
     "scripts": {
-        "test": "bash tests/ralph_tiiny_cli.sh",
-        "toc": "markdown-toc --maxdepth 3 -i README.md"
+        "test": "node tests/ralph_tiiny_cli.ts",
+        "toc": "markdown-toc --maxdepth 3 -i README.md",
+        "lint": "eslint \"./**/*.{ts,js}\"",
+        "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
-        "markdown-toc": "^1.2.0"
+        "@substrate-system/tapzero": "^0.10.17",
+        "@types/node": "^22.20.5",
+        "eslint": "^10.15.0",
+        "markdown-toc": "^1.2.0",
+        "newneostandard": "^0.14.3",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.74.0"
+    },
+    "type": "module",
+    "engines": {
+        "node": ">=22.18.0"
     }
 }
