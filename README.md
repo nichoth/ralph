@@ -148,7 +148,14 @@ is `http://<deviceAddress>/v1`, where `deviceAddress` comes from the Tiiny CLI
 config at `~/.local/tiiny/config.json`. Set `TIINY_BASE_URL` to use a
 different endpoint, for example `http://192.168.1.214/v1`.
 
-### Usage
+### Use
+
+```sh
+./ralph_tiiny.sh [max-iterations=10] [max-model-turns-per-session=80] \
+    -m ornith-ai/Ornith-1.5-35B-A3B-Turbo
+```
+
+#### Examples
 
 ```sh
 ./ralph_tiiny.sh
